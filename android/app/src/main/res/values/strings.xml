@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">SIMULACRUM</string>
+    <string name="title_activity_main">SIMULACRUM</string>
+    <string name="package_name">com.simulacrum.game</string>
+    <string name="custom_url_scheme">com.simulacrum.game</string>
+</resources>

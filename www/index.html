@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#0a0a08" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>SIMULACRUM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=Courier+Prime:wght@400;700&display=swap" />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- TITLE SCREEN -->
+  <div id="title-screen">
+    <div class="vhs-overlay"></div>
+    <div class="scanlines"></div>
+    <div class="title-content">
+      <div class="glitch-text" data-text="SIMULACRUM">SIMULACRUM</div>
+      <div class="subtitle">you clipped out of reality</div>
+      <div class="sub2">find the exit</div>
+      <button id="start-btn">[ ENTER ]</button>
+      <div class="controls-hint" id="controls-hint">
+        WASD / Arrow Keys — Move &nbsp;|&nbsp; Mouse — Look
+      </div>
+    </div>
+  </div>
+
+  <!-- GAME SCREEN -->
+  <div id="game-screen" class="hidden">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD overlays -->
+    <div class="vhs-overlay"></div>
+    <div class="scanlines"></div>
+    <div id="vhs-timestamp">REC ● 1995/08/14 &nbsp; 03:17:42</div>
+    <div id="crosshair">+</div>
+
+    <!-- Message popup -->
+    <div id="message-box" class="hidden">
+      <div id="message-text"></div>
+    </div>
+
+    <!-- Zone label -->
+    <div id="zone-label"></div>
+
+    <!-- Compass -->
+    <div id="compass">N</div>
+
+    <!-- Found hint indicator -->
+    <div id="hint-panel" class="hidden">
+      <div class="hint-title">▶ TRANSMISSION</div>
+      <div id="hint-content"></div>
+    </div>
+
+    <!-- Mobile joysticks -->
+    <div id="joystick-left" class="joystick-zone">
+      <div class="joystick-base">
+        <div class="joystick-knob" id="knob-left"></div>
+      </div>
+    </div>
+    <div id="joystick-right" class="joystick-zone">
+      <div class="joystick-base">
+        <div class="joystick-knob" id="knob-right"></div>
+      </div>
+    </div>
+
+    <!-- Escape screen -->
+    <div id="escape-screen" class="hidden">
+      <div class="vhs-overlay"></div>
+      <div class="scanlines"></div>
+      <div class="escape-content">
+        <div class="escape-title">YOU FOUND THE EXIT</div>
+        <div class="escape-sub">but did you really escape?</div>
+        <button id="restart-btn">[ PLAY AGAIN ]</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/textures.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/renderer.js"></script>
+  <script src="js/game.js"></script>
+</body>
+</html>
