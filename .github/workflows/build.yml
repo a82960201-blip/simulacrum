@@ -42,3 +42,6 @@ jobs:
         with:
           name: simulacrum-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Install TypeScript
+        run: npm install -D typescript
