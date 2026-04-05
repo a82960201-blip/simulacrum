@@ -1,78 +1,65 @@
-# SIMULACRUM — APK Build Guide (v2)
+# SIMULACRUM — APK Build Guide
 
-## What you need installed
-- **Node.js 18+** → https://nodejs.org
-- **Android Studio** (with Android SDK + Build Tools) → https://developer.android.com/studio
-- **Java 17 JDK** → comes with Android Studio, or install separately
+## Prerequisites
+- Node.js 18+
+- Android Studio (with SDK + NDK installed)
+- Java 17 (JDK)
 
 ---
 
-## One-time setup
+## Steps
 
+### 1. Install dependencies
 ```bash
-# 1. Go into the game folder
 cd simulacrum
-
-# 2. Install Capacitor dependencies
 npm install
+```
 
-# 3. Add the Android platform (only do this ONCE)
+### 2. Initialize Capacitor (first time only)
+```bash
+npx cap init simulacrum com.simulacrum.game --web-dir .
+```
+
+### 3. Add Android platform (first time only)
+```bash
 npx cap add android
 ```
 
----
-
-## Every time you make changes
-
+### 4. Sync web files into the Android project
 ```bash
-# Sync your web files into the Android project
 npx cap sync android
+```
 
-# Open Android Studio (then build from there)
+### 5. Open in Android Studio
+```bash
 npx cap open android
 ```
 
----
-
-## Building the APK in Android Studio
-
-1. Wait for Gradle sync to finish (bottom progress bar)
-2. Go to: **Build → Build Bundle(s) / APK(s) → Build APK(s)**
-3. Click **"locate"** in the popup, or find it at:
-   `android/app/build/outputs/apk/debug/app-debug.apk`
+### 6. Build APK in Android Studio
+- In Android Studio: **Build → Build Bundle(s) / APK(s) → Build APK(s)**
+- APK will be at: `android/app/build/outputs/apk/debug/app-debug.apk`
 
 ---
 
-## Install on your phone
+## Performance notes
 
-**Option A — USB:**
+The game uses **render scale 0.45** on mobile (renders at 45% resolution, upscales to full screen).
+This gives the intentional VHS pixelated look AND keeps framerate smooth on mid-range phones.
+
+If still slow on very old devices, open `js/game.js` and lower `RENDER_SCALE` to `0.3`.
+
+---
+
+## Sideload the APK
 ```bash
 adb install android/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-**Option B — File transfer:**
-- Copy `app-debug.apk` to your phone
-- Settings → Apps → Install unknown apps → allow your file manager
-- Tap the APK and install
+Or transfer the APK file directly to your phone and install with "Install unknown apps" enabled.
 
 ---
 
-## Performance tuning
-
-Renders at **45% res** on mobile (pixelated VHS look + speed).
-If slow, open `js/game.js` and lower:
-```js
-const RENDER_SCALE = isMobile ? 0.35 : 0.75;  // try 0.3 on old devices
-```
-
----
-
-## Force landscape (recommended)
-
-In Android Studio, open:
-`android/app/src/main/AndroidManifest.xml`
-
-Find `<activity` and add:
-```xml
-android:screenOrientation="sensorLandscape"
-```
+## Publish to Play Store
+- Build a **signed release APK** or **AAB** via:
+  - Build → Generate Signed Bundle / APK
+- Follow [Capacitor's publishing guide](https://capacitorjs.com/docs/android)

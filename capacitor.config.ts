@@ -3,7 +3,7 @@ import { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
   appId: 'com.simulacrum.game',
   appName: 'SIMULACRUM',
-  webDir: 'www',
+  webDir: '.',           // our HTML/JS/CSS lives at root
   server: {
     androidScheme: 'https',
     cleartext: false,
@@ -12,14 +12,11 @@ const config: CapacitorConfig = {
     buildOptions: {
       releaseType: 'APK',
     },
-    allowMixedContent: false,
   },
   plugins: {
     SplashScreen: {
-      launchShowDuration: 1500,
+      launchShowDuration: 0,
       backgroundColor: '#0a0a08',
-      showSpinner: false,
-      launchAutoHide: true,
     },
   },
 };
