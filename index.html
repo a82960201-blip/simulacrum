@@ -2,8 +2,14 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#0a0a08" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <title>SIMULACRUM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=Courier+Prime:wght@400;700&display=swap" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
@@ -17,8 +23,8 @@
       <div class="subtitle">you clipped out of reality</div>
       <div class="sub2">find the exit</div>
       <button id="start-btn">[ ENTER ]</button>
-      <div class="controls-hint">
-        WASD / Arrow Keys — Move &nbsp;|&nbsp; Mouse — Look &nbsp;|&nbsp; Click to lock cursor
+      <div class="controls-hint" id="controls-hint">
+        WASD / Arrow Keys — Move &nbsp;|&nbsp; Mouse — Look
       </div>
     </div>
   </div>
@@ -48,13 +54,6 @@
     <div id="hint-panel" class="hidden">
       <div class="hint-title">▶ TRANSMISSION</div>
       <div id="hint-content"></div>
-    </div>
-
-    <!-- Rotate to landscape prompt (mobile portrait) -->
-    <div id="rotate-prompt" class="hidden">
-      <div class="rotate-icon">⟳</div>
-      <div class="rotate-text">rotate your phone</div>
-      <div class="rotate-sub">this game requires landscape mode</div>
     </div>
 
     <!-- Mobile joysticks -->

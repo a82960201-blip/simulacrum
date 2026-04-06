@@ -1,520 +1,284 @@
-// world.js — 128×128 map, all zones connected, pool + office rooms
+// world.js — Multi-room world: each room is a maze with its own color.
+// Doors connect rooms. You walk through — no teleport.
+// Cube placeholders mark asset positions. Replace with real models later.
+
+// ─────────────────────────────────────────────────────────────
+// ZONE / CELL CONSTANTS
+// ─────────────────────────────────────────────────────────────
 
 const ZONE = {
-  BACKROOMS: 'backrooms',
-  OFFICE:    'office',
-  POOL:      'pool',
-  DREAM:     'dream',
-  TADC:      'tadc',
-  VOID:      'void',
+  HALLWAY:    'hallway',
+  CLASSROOM:  'classroom',
+  POOL:       'pool',
+  MALL:       'mall',
+  HOSPITAL:   'hospital',
+  VOID:       'void',
 };
 
 const CELL = {
-  EMPTY: 0,
-  WALL:  1,
-  EXIT:  2,
+  EMPTY:  0,
+  WALL:   1,
+  DOOR:   2,   // walkthrough door
+  EXIT:   3,   // final exit
 };
 
-const MAP_SIZE = 128;
+// ─────────────────────────────────────────────────────────────
+// MAP  (80 × 80 tiles)
+// ─────────────────────────────────────────────────────────────
 
-function buildMap() {
-  const M = [];
-  for (let y = 0; y < MAP_SIZE; y++) M[y] = new Array(MAP_SIZE).fill(CELL.WALL);
+const MAP_SIZE = 80;
 
-  // ── helpers ──────────────────────────────────────────────────
-  function carve(x, y) {
-    if (x > 0 && x < MAP_SIZE-1 && y > 0 && y < MAP_SIZE-1) M[y][x] = CELL.EMPTY;
-  }
-  function rect(x1, y1, x2, y2) {
-    for (let y = y1; y <= y2; y++)
-      for (let x = x1; x <= x2; x++) carve(x, y);
-  }
-  function hwall(x1, x2, y, skip = []) {
-    for (let x = x1; x <= x2; x++)
-      if (!skip.includes(x)) M[y][x] = CELL.WALL;
-  }
-  function vwall(x, y1, y2, skip = []) {
-    for (let y = y1; y <= y2; y++)
-      if (!skip.includes(y)) M[y][x] = CELL.WALL;
-  }
-  function gap(x, y, w = 2, h = 2) {
-    for (let dy = 0; dy < h; dy++)
-      for (let dx = 0; dx < w; dx++)
-        carve(x + dx, y + dy);
-  }
-
-  // ═══════════════════════════════════════════════════════════════
-  // ZONE LAYOUT (128×128)
-  //
-  //   x:  0──55   56──127
-  //   y:
-  //   0──55   BACKROOMS  |  VOID
-  //   56──127  OFFICE     |  DREAM
-  //                       |  POOL (sub-zone of dream, x:80-127 y:70-127)
-  //                       |  TADC (sub-zone of dream, x:80-127 y:56-70)
-  // ═══════════════════════════════════════════════════════════════
-
-  // ── BACKROOMS (x:1–54, y:1–54) ──────────────────────────────
-  // Classic yellow maze — large, labyrinthine, lots of samey corridors
-  rect(1, 1, 54, 54);
-
-  // Layer 1 — long horizontal dividers with gaps
-  const bHwalls = [7, 14, 21, 28, 35, 42, 49];
-  bHwalls.forEach(wy => {
-    hwall(1, 54, wy, [4,5, 11,12, 18,19, 25,26, 33,34, 40,41, 48,49]);
-  });
-
-  // Layer 2 — vertical dividers
-  const bVwalls = [9, 18, 27, 36, 45];
-  bVwalls.forEach(wx => {
-    vwall(wx, 1, 54, [4,5, 11,12, 19,20, 27,28, 35,36, 43,44, 50,51]);
-  });
-
-  // Extra backrooms rooms — small offices within the maze
-  // Room A
-  rect(2, 2, 7, 6);   hwall(2,7,6); vwall(7,2,6); M[4][7]=CELL.EMPTY;
-  // Room B
-  rect(11,2,16,6);    hwall(11,16,6); vwall(16,2,6); M[4][11]=CELL.EMPTY;
-  // Room C — big open section
-  rect(20,15,34,25);
-  hwall(20,34,15); hwall(20,34,25);
-  vwall(20,15,25); vwall(34,15,25);
-  gap(27,15,2,2); gap(27,25,2,2); gap(20,20,2,2); gap(34,20,2,2);
-
-  // ── VOID CORRIDORS (x:57–126, y:1–54) ───────────────────────
-  // Fixed: multiple WIDE corridors criss-crossing — always navigable
-  rect(57, 1, 126, 54);
-
-  // Horizontal bands every 8 rows — leave wide gaps (4 tiles)
-  for (let wy = 9; wy <= 45; wy += 9) {
-    hwall(57, 126, wy, [60,61,62,63, 68,69,70,71, 76,77,78,79, 84,85,86,87, 92,93,94,95, 100,101,102,103, 110,111,112,113, 120,121,122,123]);
-  }
-  // Vertical bands every 8 cols — leave wide gaps
-  for (let vx = 65; vx <= 118; vx += 9) {
-    vwall(vx, 1, 54, [4,5,6,7, 13,14,15,16, 22,23,24,25, 31,32,33,34, 40,41,42,43, 49,50,51,52]);
-  }
-
-  // Some void chambers — small dark rooms to discover (NO big central chamber — was appearing white)
-  rect(59,2,63,7);     // NW void alcove
-  rect(118,2,125,7);   // NE void alcove
-  rect(59,47,66,53);   // SW void alcove
-  rect(118,47,125,53); // SE void alcove
-  // NOTE: removed rect(88,22,100,32) — this was the white maze room
-
-  // ── OFFICE BACKROOMS (x:1–54, y:57–126) ─────────────────────
-  // Grid-like corridors, cubicle rows, 1995 desktops
-  rect(1, 57, 54, 126);
-
-  // Main corridors — wide east-west halls
-  for (let gy = 63; gy <= 120; gy += 7) {
-    hwall(1, 54, gy, [4,5,6, 11,12,13, 18,19,20, 25,26,27, 32,33,34, 39,40,41, 46,47,48]);
-  }
-  // North-south corridors
-  for (let gx = 8; gx <= 48; gx += 8) {
-    vwall(gx, 57, 126, [60,61, 67,68, 74,75, 81,82, 88,89, 95,96, 102,103, 109,110, 116,117, 123,124]);
-  }
-
-  // Office rooms — enclosed cubicle clusters
-  // Cluster A
-  rect(2,58,6,62);   M[60][6]=CELL.EMPTY;
-  rect(2,65,6,69);   M[67][6]=CELL.EMPTY;
-  rect(2,72,6,76);   M[74][6]=CELL.EMPTY;
-  // Cluster B
-  rect(10,58,16,62); M[60][16]=CELL.EMPTY;
-  rect(10,65,16,69); M[67][16]=CELL.EMPTY;
-  // Big open office floor
-  rect(18,80,54,100);
-  hwall(18,54,80); hwall(18,54,100);
-  vwall(18,80,100); vwall(54,80,100);
-  // Internal cubicle dividers
-  for (let cx = 22; cx <= 50; cx += 4) vwall(cx, 81, 99, [85,86,92,93]);
-  for (let cy = 84; cy <= 96; cy += 4) hwall(19, 53, cy, [22,23,26,27,30,31,34,35,38,39,42,43,46,47]);
-  // Entrance to big office
-  gap(18,89,2,4); gap(35,80,2,2); gap(35,100,2,2);
-
-  // Server room
-  rect(2,105,12,115);
-  hwall(2,12,105); hwall(2,12,115); vwall(2,105,115); vwall(12,105,115);
-  gap(7,105,2,2);
-  for (let sx = 3; sx <= 11; sx += 2) vwall(sx, 106, 114, [109,110]);
-
-  // ── DREAM ZONE (x:57–126, y:57–126) — pastel open halls ─────
-  rect(57, 57, 126, 126);
-
-  // Dreamcore: pillared halls — open spaces with regular columns
-  for (let px = 60; px <= 124; px += 5)
-    for (let py = 60; py <= 124; py += 5)
-      M[py][px] = CELL.WALL;
-
-  // Clear pillar-free areas for special rooms
-  rect(57,57,80,70);   // clear NW dream entrance
-  rect(100,57,126,70); // clear NE (TADC area)
-  rect(57,100,80,126); // clear SW dream (pool approach)
-  rect(100,100,126,126); // clear SE (pool room)
-
-  // ── POOL ROOM (x:88–126, y:90–126) ──────────────────────────
-  // Abandoned school swimming pool
-  rect(88, 90, 126, 126);
-  // Outer walls of pool room
-  hwall(88,126,90); hwall(88,126,126);
-  vwall(88,90,126); vwall(126,90,126);
-  // Pool entrances
-  gap(97,90,4,2); gap(115,90,4,2); gap(88,108,2,4);
-
-  // The pool basin — sunken area represented by wall ring
-  hwall(92,122,94); hwall(92,122,120);
-  vwall(92,94,120); vwall(122,94,120);
-  // Pool gaps — walkway around it
-  gap(96,94,4,2); gap(110,94,4,2);
-  gap(96,120,4,2); gap(110,120,4,2);
-  gap(92,98,2,4); gap(92,108,2,4); gap(92,115,2,4);
-  gap(122,98,2,4); gap(122,108,2,4); gap(122,115,2,4);
-  // Pool interior (walkable — the water is dry)
-  rect(93,95,121,119);
-  // Pool drain / centre feature
-  M[107][107] = CELL.WALL; M[107][108] = CELL.WALL;
-  M[108][107] = CELL.WALL; M[108][108] = CELL.WALL;
-  // Bleacher rows (walls with gaps)
-  hwall(93,103,97,[95,96,99,100]); hwall(93,103,99,[95,96,99,100]);
-  hwall(93,103,112,[95,96,99,100]); hwall(93,103,114,[95,96,99,100]);
-
-  // Changing room corridor
-  rect(88,90,91,104);
-
-  // ── TADC POCKET (x:100–126, y:57–88) ────────────────────────
-  // Inside dream — glitch circus area
-  rect(100,57,126,88);
-  hwall(100,126,57); hwall(100,126,88); vwall(100,57,88); vwall(126,57,88);
-  gap(110,57,4,2); gap(100,72,2,4); gap(120,57,4,2);
-  // Internal circus ring walls
-  for (let t = 0; t < 16; t++) {
-    const a = (t / 16) * Math.PI * 2;
-    const cx = Math.round(113 + Math.cos(a) * 9);
-    const cy = Math.round(72  + Math.sin(a) * 8);
-    if (cx > 101 && cx < 125 && cy > 58 && cy < 87) M[cy][cx] = CELL.WALL;
-  }
-
-  // ── ZONE CONNECTORS ──────────────────────────────────────────
-
-  // BACKROOMS → VOID (east wall, x=55-56, multiple y)
-  for (const cy of [10,20,30,40,50]) {
-    gap(54,cy,4,3);
-  }
-
-  // BACKROOMS → OFFICE (south wall, y=55-56, multiple x)
-  for (const cx of [10,20,30,40,50]) {
-    gap(cx,54,3,4);
-  }
-
-  // VOID → DREAM (south wall y=55-56)
-  for (const cx of [62,72,82,92,102,112,122]) {
-    gap(cx,54,3,4);
-  }
-
-  // OFFICE → DREAM (east wall x=55-56)
-  for (const cy of [62,72,82,92,102,112,122]) {
-    gap(54,cy,4,3);
-  }
-
-  // DREAM → POOL (pool entrance gaps already punched above)
-
-  // DREAM → TADC (TADC entrance gaps already punched above)
-
-  // ── OUTER BORDER ─────────────────────────────────────────────
-  for (let i = 0; i < MAP_SIZE; i++) {
-    M[0][i] = CELL.WALL; M[MAP_SIZE-1][i] = CELL.WALL;
-    M[i][0] = CELL.WALL; M[i][MAP_SIZE-1] = CELL.WALL;
-  }
-
-  // ── ZONE BORDER WALLS (sealed) ────────────────────────────────
-  vwall(55, 1, 54);  vwall(56, 1, 54);   // backrooms/void border
-  hwall(1, 54, 55);  hwall(1, 54, 56);   // backrooms/office border
-  hwall(57,126, 55); hwall(57,126, 56);  // void/dream border
-  vwall(55,57,126);  vwall(56,57,126);   // office/dream border
-
-  // Re-punch all connectors after sealing
-  for (const cy of [10,20,30,40,50]) { gap(53,cy,4,3); }
-  for (const cx of [10,20,30,40,50]) { gap(cx,53,3,4); }
-  for (const cx of [62,72,82,92,102,112,122]) { gap(cx,53,3,4); }
-  for (const cy of [62,72,82,92,102,112,122]) { gap(53,cy,4,3); }
-
-  // ── EXIT ─────────────────────────────────────────────────────
-  // Bottom of the pool room — south wall
-  rect(110,122,116,125);
-  M[124][113] = CELL.EXIT;
-
-  return M;
+const RAW = [];
+for (let y = 0; y < MAP_SIZE; y++) {
+  RAW[y] = new Array(MAP_SIZE).fill(1);
 }
 
-const worldMap = buildMap();
+function carve(x1, y1, x2, y2) {
+  for (let y = y1; y <= y2; y++)
+    for (let x = x1; x <= x2; x++)
+      RAW[y][x] = 0;
+}
+function door(x, y) { RAW[y][x] = 2; }
+function exit_(x, y) { RAW[y][x] = 3; }
 
-// ── Zone classification ────────────────────────────────────────
+// ── SCHOOL HALLWAY (rows 2–6, cols 2–27) ──────────────────
+carve(2, 2, 27, 6);
+carve(4, 1, 6, 1);
+carve(10, 1, 12, 1);
+carve(20, 1, 22, 1);
+RAW[4][8]  = 1; RAW[4][9]  = 1;
+RAW[4][16] = 1; RAW[4][17] = 1;
+
+// ── CLASSROOM A (rows 9–22, cols 2–13) ───────────────────
+carve(2, 9, 13, 22);
+carve(4, 8, 10, 8);
+
+// ── CLASSROOM B (rows 9–22, cols 15–27) ──────────────────
+carve(15, 9, 27, 22);
+carve(14, 14, 14, 16);
+
+// Doors: hallway → classrooms
+door(7, 7); door(7, 8);
+door(20, 7); door(20, 8);
+door(14, 15); // between A and B
+
+// ── POOL (rows 2–26, cols 30–51) ─────────────────────────
+carve(30, 2, 51, 26);
+carve(52, 2, 54, 8);
+
+// Doors: hallway → pool, pool → mall
+door(28, 4); door(29, 4);
+door(40, 27); door(41, 27);
+
+// ── ABANDONED MALL (rows 28–52, cols 2–51) ───────────────
+carve(2, 28, 51, 52);
+// Storefront dividers (row of stubs with gaps for entry)
+for (let x = 4; x <= 46; x += 4) {
+  RAW[31][x] = 1; RAW[31][x+1] = 1; RAW[31][x+2] = 1;
+}
+for (let x = 4; x <= 48; x += 6) {
+  RAW[40][x] = 1; RAW[40][x+1] = 1; RAW[40][x+2] = 1; RAW[40][x+3] = 1;
+}
+// Fountain plaza square
+RAW[36][24]=1; RAW[36][25]=1; RAW[36][26]=1;
+RAW[37][24]=1;                RAW[37][26]=1;
+RAW[38][24]=1; RAW[38][25]=1; RAW[38][26]=1;
+
+// Doors: school area → mall, mall → hospital
+door(7, 27); door(7, 28);
+door(52, 40); door(52, 41);
+
+// ── ABANDONED HOSPITAL (rows 2–76, cols 54–77) ───────────
+carve(54, 2, 77, 5);         // entrance corridor
+carve(54, 2, 56, 50);        // west spine
+carve(75, 2, 77, 50);        // east spine
+carve(57, 2, 66, 10);        // ward 1
+carve(57, 12, 66, 20);       // ward 2
+carve(57, 22, 66, 30);       // ward 3
+carve(57, 32, 66, 40);       // ward 4
+carve(57, 42, 66, 50);       // ward 5 / morgue
+carve(68, 2, 74, 10);        // ward 6
+carve(68, 12, 74, 20);       // ward 7 (surgery)
+carve(68, 22, 74, 30);       // ward 8
+carve(68, 32, 74, 40);       // ward 9
+carve(68, 42, 74, 50);       // ward 10
+carve(54, 25, 77, 27);       // cross corridor
+carve(54, 10, 77, 11);
+carve(54, 38, 77, 39);
+carve(54, 52, 77, 76);       // deep south
+carve(57, 52, 70, 60);
+carve(57, 62, 70, 76);       // operating room
+carve(72, 52, 74, 76);
+
+// Hospital internal doors
+door(56, 6);  door(56, 7);
+door(67, 6);  door(67, 7);
+door(56, 16); door(56, 17);
+door(67, 16); door(67, 17);
+door(56, 26); door(56, 27);
+door(67, 26); door(67, 27);
+door(56, 36); door(56, 37);
+door(67, 36); door(67, 37);
+door(56, 46); door(56, 47);
+door(67, 46); door(67, 47);
+door(60, 51); door(61, 51);
+
+// EXIT — deep in the operating room
+exit_(63, 75);
+
+// ─────────────────────────────────────────────────────────────
+const worldMap = RAW;
+
+// ─────────────────────────────────────────────────────────────
+// ZONE MAPPING
+// ─────────────────────────────────────────────────────────────
+
 function getZone(tx, ty) {
-  // Sub-zones first (more specific)
-  if (tx >= 88 && tx <= 127 && ty >= 90 && ty <= 127) return ZONE.POOL;
-  if (tx >= 100 && tx <= 127 && ty >= 57 && ty <= 88)  return ZONE.TADC;
-  if (tx >= 57 && ty >= 57)  return ZONE.DREAM;
-  if (tx >= 57 && ty <  57)  return ZONE.VOID;
-  if (tx <  57 && ty >= 57)  return ZONE.OFFICE;
-  return ZONE.BACKROOMS;
+  if (tx >= 54 && tx <= 77) return ZONE.HOSPITAL;
+  if (tx >= 30 && tx <= 53 && ty >= 1 && ty <= 27) return ZONE.POOL;
+  if (tx >= 2 && tx <= 53 && ty >= 27 && ty <= 53) return ZONE.MALL;
+  if (tx >= 2 && tx <= 13 && ty >= 8 && ty <= 23)  return ZONE.CLASSROOM;
+  if (tx >= 14 && tx <= 28 && ty >= 8 && ty <= 23) return ZONE.CLASSROOM;
+  if (tx >= 1 && tx <= 28 && ty >= 1 && ty <= 8)   return ZONE.HALLWAY;
+  return ZONE.VOID;
 }
 
 function getZoneTextures(zone) {
   switch (zone) {
-    case ZONE.BACKROOMS: return { wall:'backroomsWall', floor:'backroomsFloor', ceiling:'backroomsCeiling', fogColor:[200,185,100], fogDist:13 };
-    case ZONE.OFFICE:    return { wall:'officeWall',    floor:'officeFloor',    ceiling:'officeCeiling',    fogColor:[140,150,135], fogDist:14 };
-    case ZONE.POOL:      return { wall:'poolWall',      floor:'poolFloor',      ceiling:'poolCeiling',      fogColor:[80,120,130],  fogDist:18 };
-    case ZONE.DREAM:     return { wall:'dreamWall',     floor:'dreamFloor',     ceiling:'dreamCeiling',     fogColor:[230,190,220], fogDist:18 };
-    case ZONE.TADC:      return { wall:'tadcWall',      floor:'tadcFloor',      ceiling:'tadcCeiling',      fogColor:[60,20,50],    fogDist:9  };
-    case ZONE.VOID:
-    default:             return { wall:'voidWall',      floor:'voidFloor',      ceiling:'voidCeiling',      fogColor:[8,12,18],     fogDist:8  };
+    case ZONE.HALLWAY:
+      return { wall: TextureLib.hallwayWall, floor: TextureLib.hallwayFloor, ceiling: TextureLib.hallwayCeiling, fogColor: [180,175,155], fogDist: 14 };
+    case ZONE.CLASSROOM:
+      return { wall: TextureLib.classroomWall, floor: TextureLib.classroomFloor, ceiling: TextureLib.classroomCeiling, fogColor: [200,195,175], fogDist: 12 };
+    case ZONE.POOL:
+      return { wall: TextureLib.poolWall, floor: TextureLib.poolFloor, ceiling: TextureLib.poolCeiling, fogColor: [80,140,160], fogDist: 18 };
+    case ZONE.MALL:
+      return { wall: TextureLib.mallWall, floor: TextureLib.mallFloor, ceiling: TextureLib.mallCeiling, fogColor: [60,55,50], fogDist: 16 };
+    case ZONE.HOSPITAL:
+      return { wall: TextureLib.hospitalWall, floor: TextureLib.hospitalFloor, ceiling: TextureLib.hospitalCeiling, fogColor: [140,155,140], fogDist: 10 };
+    default:
+      return { wall: TextureLib.voidWall, floor: TextureLib.voidFloor, ceiling: TextureLib.voidWall, fogColor: [10,15,20], fogDist: 6 };
   }
 }
 
 function getZoneName(zone) {
   switch (zone) {
-    case ZONE.BACKROOMS: return 'LEVEL 0 — THE LOBBY';
-    case ZONE.VOID:      return 'THE VOID BETWEEN';
-    case ZONE.OFFICE:    return 'LEVEL 1 — HABITABLE ZONE';
-    case ZONE.POOL:      return 'THE ABANDONED POOL';
-    case ZONE.DREAM:     return 'THE DREAM CORRIDOR';
-    case ZONE.TADC:      return 'THE DIGITAL CIRCUS';
+    case ZONE.HALLWAY:   return 'HALLWAY — EAST WING';
+    case ZONE.CLASSROOM: return 'CLASSROOM — EMPTY';
+    case ZONE.POOL:      return 'NATATORIUM';
+    case ZONE.MALL:      return 'RIVERSIDE MALL — CLOSED';
+    case ZONE.HOSPITAL:  return 'ST. ELARA GENERAL — ABANDONED';
     default:             return '';
   }
 }
 
-// ── Sprites ────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────
+// SPRITES — placeholder cubes + entity
+// ─────────────────────────────────────────────────────────────
+
 const SPRITES = [
+  // HALLWAY
+  { x:4.5,  y:1.5,  texture:'placeholder', label:'lockers_01',        type:'placeholder' },
+  { x:10.5, y:1.5,  texture:'placeholder', label:'lockers_02',        type:'placeholder' },
+  { x:20.5, y:1.5,  texture:'placeholder', label:'lockers_03',        type:'placeholder' },
+  { x:14.5, y:4.5,  texture:'placeholder', label:'bulletin_board',    type:'placeholder' },
+  { x:24.5, y:2.5,  texture:'placeholder', label:'fire_extinguisher', type:'placeholder' },
+  { x:6.5,  y:5.5,  texture:'placeholder', label:'trash_can',         type:'placeholder' },
 
-  // ── ENTITY — lurking in the void ────────────────────────────
+  // CLASSROOM A
+  { x:4.5,  y:11.5, texture:'placeholder', label:'desk_student',  type:'placeholder' },
+  { x:4.5,  y:13.0, texture:'placeholder', label:'chair_student', type:'placeholder' },
+  { x:7.5,  y:11.5, texture:'placeholder', label:'desk_student',  type:'placeholder' },
+  { x:7.5,  y:13.0, texture:'placeholder', label:'chair_student', type:'placeholder' },
+  { x:10.5, y:11.5, texture:'placeholder', label:'desk_student',  type:'placeholder' },
+  { x:10.5, y:13.0, texture:'placeholder', label:'chair_student', type:'placeholder' },
+  { x:4.5,  y:16.5, texture:'placeholder', label:'desk_student',  type:'placeholder' },
+  { x:4.5,  y:18.0, texture:'placeholder', label:'chair_student', type:'placeholder' },
+  { x:7.5,  y:16.5, texture:'placeholder', label:'desk_student',  type:'placeholder' },
+  { x:7.5,  y:18.0, texture:'placeholder', label:'chair_student', type:'placeholder' },
+  { x:10.5, y:16.5, texture:'placeholder', label:'desk_student',  type:'placeholder' },
+  { x:10.5, y:18.0, texture:'placeholder', label:'chair_student', type:'placeholder' },
+  { x:7.0,  y:9.5,  texture:'placeholder', label:'blackboard',    type:'placeholder' },
+  { x:11.5, y:10.5, texture:'placeholder', label:'teacher_desk',  type:'placeholder' },
+
+  // CLASSROOM B
+  { x:17.5, y:11.5, texture:'placeholder', label:'desk_student',  type:'placeholder' },
+  { x:17.5, y:13.0, texture:'placeholder', label:'chair_student', type:'placeholder' },
+  { x:20.5, y:11.5, texture:'placeholder', label:'desk_student',  type:'placeholder' },
+  { x:20.5, y:13.0, texture:'placeholder', label:'chair_student', type:'placeholder' },
+  { x:23.5, y:11.5, texture:'placeholder', label:'desk_student',  type:'placeholder' },
+  { x:23.5, y:13.0, texture:'placeholder', label:'chair_student', type:'placeholder' },
+  { x:17.5, y:16.5, texture:'placeholder', label:'desk_student',  type:'placeholder' },
+  { x:17.5, y:18.0, texture:'placeholder', label:'chair_student', type:'placeholder' },
+  { x:20.5, y:16.5, texture:'placeholder', label:'desk_student',  type:'placeholder' },
+  { x:20.5, y:18.0, texture:'placeholder', label:'chair_student', type:'placeholder' },
+  { x:23.5, y:16.5, texture:'placeholder', label:'desk_student',  type:'placeholder' },
+  { x:23.5, y:18.0, texture:'placeholder', label:'chair_student', type:'placeholder' },
+  { x:20.5, y:9.5,  texture:'placeholder', label:'blackboard',    type:'placeholder' },
+  { x:26.0, y:10.5, texture:'placeholder', label:'teacher_desk',  type:'placeholder' },
+
+  // POOL
+  { x:40.5, y:14.0, texture:'placeholder', label:'pool_water',      type:'placeholder' },
+  { x:35.5, y:8.0,  texture:'placeholder', label:'pool_ladder',     type:'placeholder' },
+  { x:46.5, y:8.0,  texture:'placeholder', label:'pool_ladder',     type:'placeholder' },
+  { x:38.0, y:14.0, texture:'placeholder', label:'lane_divider',    type:'placeholder' },
+  { x:41.0, y:14.0, texture:'placeholder', label:'lane_divider',    type:'placeholder' },
+  { x:44.0, y:14.0, texture:'placeholder', label:'lane_divider',    type:'placeholder' },
+  { x:47.5, y:22.0, texture:'placeholder', label:'diving_board',    type:'placeholder' },
+  { x:32.5, y:20.5, texture:'placeholder', label:'bench_pool',      type:'placeholder' },
+  { x:50.5, y:4.5,  texture:'placeholder', label:'changing_curtain',type:'placeholder' },
+
+  // MALL
+  { x:37.0, y:36.5, texture:'placeholder', label:'fountain_dry',    type:'placeholder' },
+  { x:10.0, y:35.5, texture:'placeholder', label:'escalator_static',type:'placeholder' },
+  { x:5.5,  y:30.5, texture:'placeholder', label:'store_sign_01',   type:'placeholder' },
+  { x:15.5, y:30.5, texture:'placeholder', label:'store_sign_02',   type:'placeholder' },
+  { x:25.5, y:30.5, texture:'placeholder', label:'store_sign_01',   type:'placeholder' },
+  { x:35.5, y:30.5, texture:'placeholder', label:'store_sign_02',   type:'placeholder' },
+  { x:45.5, y:30.5, texture:'placeholder', label:'store_sign_01',   type:'placeholder' },
+  { x:22.5, y:44.5, texture:'placeholder', label:'bench_mall',      type:'placeholder' },
+  { x:30.5, y:44.5, texture:'placeholder', label:'bench_mall',      type:'placeholder' },
+  { x:18.0, y:48.5, texture:'placeholder', label:'mannequin',       type:'placeholder' },
+  { x:40.5, y:48.5, texture:'placeholder', label:'mannequin',       type:'placeholder' },
+  { x:8.0,  y:42.5, texture:'placeholder', label:'shopping_cart',   type:'placeholder' },
+  { x:48.0, y:35.5, texture:'placeholder', label:'trash_overturned',type:'placeholder' },
+
+  // HOSPITAL
+  { x:60.5, y:4.5,  texture:'placeholder', label:'hospital_bed',    type:'placeholder' },
+  { x:63.5, y:4.5,  texture:'placeholder', label:'hospital_bed',    type:'placeholder' },
+  { x:61.5, y:7.5,  texture:'placeholder', label:'iv_stand',        type:'placeholder' },
+  { x:60.5, y:14.5, texture:'placeholder', label:'hospital_bed',    type:'placeholder' },
+  { x:63.5, y:14.5, texture:'placeholder', label:'hospital_bed',    type:'placeholder' },
+  { x:58.5, y:17.5, texture:'placeholder', label:'wheelchair',      type:'placeholder' },
+  { x:60.5, y:24.5, texture:'placeholder', label:'hospital_bed',    type:'placeholder' },
+  { x:63.5, y:24.5, texture:'placeholder', label:'hospital_bed',    type:'placeholder' },
+  { x:65.0, y:27.5, texture:'placeholder', label:'file_cabinet',    type:'placeholder' },
+  { x:60.5, y:34.5, texture:'placeholder', label:'hospital_bed',    type:'placeholder' },
+  { x:64.0, y:36.5, texture:'placeholder', label:'stretcher',       type:'placeholder' },
+  { x:58.5, y:33.5, texture:'placeholder', label:'biohazard_bin',   type:'placeholder' },
+  { x:60.5, y:44.5, texture:'placeholder', label:'hospital_bed',    type:'placeholder' },
+  { x:63.5, y:44.5, texture:'placeholder', label:'hospital_bed',    type:'placeholder' },
+  { x:60.5, y:48.5, texture:'placeholder', label:'hospital_bed',    type:'placeholder' },
+  { x:70.5, y:5.5,  texture:'placeholder', label:'hospital_bed',    type:'placeholder' },
+  { x:71.5, y:15.5, texture:'placeholder', label:'surgery_lamp',    type:'placeholder' },
+  { x:69.5, y:14.5, texture:'placeholder', label:'hospital_bed',    type:'placeholder' },
+  { x:70.5, y:25.5, texture:'placeholder', label:'hospital_curtain',type:'placeholder' },
+  { x:70.5, y:35.5, texture:'placeholder', label:'iv_stand',        type:'placeholder' },
+  { x:70.5, y:45.5, texture:'placeholder', label:'biohazard_bin',   type:'placeholder' },
+  { x:55.5, y:20.5, texture:'placeholder', label:'stretcher',       type:'placeholder' },
+  { x:55.5, y:33.5, texture:'placeholder', label:'wheelchair',      type:'placeholder' },
+  { x:62.5, y:55.5, texture:'placeholder', label:'surgery_lamp',    type:'placeholder' },
+  { x:60.5, y:58.5, texture:'placeholder', label:'hospital_bed',    type:'placeholder' },
+  { x:64.5, y:58.5, texture:'placeholder', label:'hospital_bed',    type:'placeholder' },
+  { x:62.5, y:68.5, texture:'placeholder', label:'hospital_bed',    type:'placeholder' },
+  { x:59.5, y:70.5, texture:'placeholder', label:'file_cabinet',    type:'placeholder' },
+
+  // ENTITY — lurks in hospital ward 4
   {
-    x: 85.5, y: 28.5,
-    texture: 'entity', type: 'entity',
-    hint: "keep going south-east. where the tiles turn wet and the lights go blue. the exit breathes at the bottom of the pool."
+    x: 61.5, y: 37.5,
+    texture: 'entity',
+    type: 'entity',
+    hint: "the door at the bottom breathes. south. always south. the operating room remembers what it cut out of you.",
   },
-
-  // ── BACKROOMS PROPS ──────────────────────────────────────────
-  // Scattered chairs and tables in the open corridors
-  { x:  5.5, y:  2.5, texture: 'chair',   type: 'prop' },
-  { x: 12.5, y:  2.5, texture: 'chair',   type: 'prop' },
-  { x:  2.5, y:  9.5, texture: 'chair',   type: 'prop' },
-  { x:  6.5, y: 10.5, texture: 'chair',   type: 'prop' },
-  { x: 15.5, y:  9.5, texture: 'chair',   type: 'prop' },
-  { x: 22.5, y:  2.5, texture: 'chair',   type: 'prop' },
-  { x: 30.5, y:  2.5, texture: 'chair',   type: 'prop' },
-  { x: 38.5, y:  2.5, texture: 'chair',   type: 'prop' },
-  { x: 46.5, y:  2.5, texture: 'chair',   type: 'prop' },
-  { x:  2.5, y: 16.5, texture: 'chair',   type: 'prop' },
-  { x:  2.5, y: 23.5, texture: 'chair',   type: 'prop' },
-  { x:  2.5, y: 30.5, texture: 'chair',   type: 'prop' },
-  { x:  2.5, y: 38.5, texture: 'chair',   type: 'prop' },
-  { x:  2.5, y: 46.5, texture: 'chair',   type: 'prop' },
-  { x: 10.5, y: 16.5, texture: 'chair',   type: 'prop' },
-  { x: 20.5, y: 23.5, texture: 'chair',   type: 'prop' },
-  { x: 30.5, y: 30.5, texture: 'chair',   type: 'prop' },
-  { x: 42.5, y: 38.5, texture: 'chair',   type: 'prop' },
-  { x: 50.5, y: 46.5, texture: 'chair',   type: 'prop' },
-  { x: 13.5, y: 30.5, texture: 'chair',   type: 'prop' },
-  { x: 24.5, y: 16.5, texture: 'trashcan',type: 'prop' },
-  { x: 36.5, y: 22.5, texture: 'trashcan',type: 'prop' },
-  { x:  7.5, y: 36.5, texture: 'trashcan',type: 'prop' },
-  { x: 46.5, y: 10.5, texture: 'trashcan',type: 'prop' },
-  { x: 50.5, y: 38.5, texture: 'trashcan',type: 'prop' },
-  // Room C big open section
-  { x: 22.5, y: 17.5, texture: 'chair',   type: 'prop' },
-  { x: 25.5, y: 17.5, texture: 'chair',   type: 'prop' },
-  { x: 28.5, y: 17.5, texture: 'chair',   type: 'prop' },
-  { x: 31.5, y: 17.5, texture: 'chair',   type: 'prop' },
-  { x: 22.5, y: 22.5, texture: 'chair',   type: 'prop' },
-  { x: 28.5, y: 22.5, texture: 'chair',   type: 'prop' },
-  { x: 32.5, y: 22.5, texture: 'trashcan',type: 'prop' },
-
-  // ── VOID PROPS — sparse but creepy ──────────────────────────
-  { x: 61.5, y:  4.5, texture: 'chair',   type: 'prop' },
-  { x: 70.5, y:  4.5, texture: 'trashcan',type: 'prop' },
-  { x: 80.5, y:  4.5, texture: 'chair',   type: 'prop' },
-  { x: 90.5, y:  4.5, texture: 'chair',   type: 'prop' },
-  { x:100.5, y:  4.5, texture: 'trashcan',type: 'prop' },
-  { x:110.5, y:  4.5, texture: 'chair',   type: 'prop' },
-  { x: 61.5, y: 50.5, texture: 'chair',   type: 'prop' },
-  { x: 75.5, y: 50.5, texture: 'trashcan',type: 'prop' },
-  { x: 90.5, y: 50.5, texture: 'chair',   type: 'prop' },
-  { x:110.5, y: 50.5, texture: 'chair',   type: 'prop' },
-  { x: 68.5, y: 20.5, texture: 'chair',   type: 'prop' },
-  { x: 80.5, y: 15.5, texture: 'chair',   type: 'prop' },
-  { x: 95.5, y: 40.5, texture: 'trashcan',type: 'prop' },
-  { x:115.5, y: 25.5, texture: 'chair',   type: 'prop' },
-
-  // ── OFFICE PROPS — desktops, chairs, trash everywhere ───────
-  // Cluster A rooms
-  { x:  3.5, y: 59.5, texture: 'desktop', type: 'prop' },
-  { x:  4.5, y: 59.5, texture: 'desktop', type: 'prop' },
-  { x:  3.5, y: 60.5, texture: 'chair',   type: 'prop' },
-  { x:  3.5, y: 66.5, texture: 'desktop', type: 'prop' },
-  { x:  4.5, y: 66.5, texture: 'desktop', type: 'prop' },
-  { x:  3.5, y: 67.5, texture: 'chair',   type: 'prop' },
-  { x:  3.5, y: 73.5, texture: 'desktop', type: 'prop' },
-  { x:  4.5, y: 73.5, texture: 'chair',   type: 'prop' },
-  // Cluster B rooms
-  { x: 11.5, y: 59.5, texture: 'desktop', type: 'prop' },
-  { x: 13.5, y: 59.5, texture: 'desktop', type: 'prop' },
-  { x: 15.5, y: 59.5, texture: 'desktop', type: 'prop' },
-  { x: 11.5, y: 60.5, texture: 'chair',   type: 'prop' },
-  { x: 15.5, y: 60.5, texture: 'chair',   type: 'prop' },
-  { x: 11.5, y: 66.5, texture: 'desktop', type: 'prop' },
-  { x: 13.5, y: 66.5, texture: 'desktop', type: 'prop' },
-  { x: 14.5, y: 67.5, texture: 'chair',   type: 'prop' },
-  { x: 11.5, y: 68.5, texture: 'trashcan',type: 'prop' },
-  // Corridors between cubicles — scattered
-  { x:  5.5, y: 64.5, texture: 'trashcan',type: 'prop' },
-  { x:  9.5, y: 71.5, texture: 'chair',   type: 'prop' },
-  { x: 17.5, y: 64.5, texture: 'trashcan',type: 'prop' },
-  { x: 17.5, y: 71.5, texture: 'chair',   type: 'prop' },
-  // Big open office floor — rows of desktops
-  { x: 20.5, y: 82.5, texture: 'desktop', type: 'prop' },
-  { x: 21.5, y: 82.5, texture: 'desktop', type: 'prop' },
-  { x: 23.5, y: 82.5, texture: 'desktop', type: 'prop' },
-  { x: 24.5, y: 82.5, texture: 'desktop', type: 'prop' },
-  { x: 27.5, y: 82.5, texture: 'desktop', type: 'prop' },
-  { x: 28.5, y: 82.5, texture: 'desktop', type: 'prop' },
-  { x: 31.5, y: 82.5, texture: 'desktop', type: 'prop' },
-  { x: 32.5, y: 82.5, texture: 'desktop', type: 'prop' },
-  { x: 35.5, y: 82.5, texture: 'desktop', type: 'prop' },
-  { x: 36.5, y: 82.5, texture: 'desktop', type: 'prop' },
-  { x: 39.5, y: 82.5, texture: 'desktop', type: 'prop' },
-  { x: 40.5, y: 82.5, texture: 'desktop', type: 'prop' },
-  { x: 43.5, y: 82.5, texture: 'desktop', type: 'prop' },
-  { x: 44.5, y: 82.5, texture: 'desktop', type: 'prop' },
-  { x: 47.5, y: 82.5, texture: 'desktop', type: 'prop' },
-  { x: 48.5, y: 82.5, texture: 'desktop', type: 'prop' },
-  // Chairs at each desk
-  { x: 20.5, y: 83.5, texture: 'chair', type: 'prop' },
-  { x: 23.5, y: 83.5, texture: 'chair', type: 'prop' },
-  { x: 27.5, y: 83.5, texture: 'chair', type: 'prop' },
-  { x: 31.5, y: 83.5, texture: 'chair', type: 'prop' },
-  { x: 35.5, y: 83.5, texture: 'chair', type: 'prop' },
-  { x: 39.5, y: 83.5, texture: 'chair', type: 'prop' },
-  { x: 43.5, y: 83.5, texture: 'chair', type: 'prop' },
-  { x: 47.5, y: 83.5, texture: 'chair', type: 'prop' },
-  // Second row of desks
-  { x: 20.5, y: 87.5, texture: 'desktop', type: 'prop' },
-  { x: 24.5, y: 87.5, texture: 'desktop', type: 'prop' },
-  { x: 28.5, y: 87.5, texture: 'desktop', type: 'prop' },
-  { x: 32.5, y: 87.5, texture: 'desktop', type: 'prop' },
-  { x: 36.5, y: 87.5, texture: 'desktop', type: 'prop' },
-  { x: 40.5, y: 87.5, texture: 'desktop', type: 'prop' },
-  { x: 44.5, y: 87.5, texture: 'desktop', type: 'prop' },
-  { x: 48.5, y: 87.5, texture: 'desktop', type: 'prop' },
-  { x: 20.5, y: 88.5, texture: 'chair',   type: 'prop' },
-  { x: 24.5, y: 88.5, texture: 'chair',   type: 'prop' },
-  { x: 28.5, y: 88.5, texture: 'chair',   type: 'prop' },
-  { x: 32.5, y: 88.5, texture: 'chair',   type: 'prop' },
-  { x: 36.5, y: 88.5, texture: 'chair',   type: 'prop' },
-  { x: 40.5, y: 88.5, texture: 'chair',   type: 'prop' },
-  // Third row
-  { x: 20.5, y: 93.5, texture: 'desktop', type: 'prop' },
-  { x: 24.5, y: 93.5, texture: 'desktop', type: 'prop' },
-  { x: 28.5, y: 93.5, texture: 'desktop', type: 'prop' },
-  { x: 32.5, y: 93.5, texture: 'desktop', type: 'prop' },
-  { x: 36.5, y: 93.5, texture: 'desktop', type: 'prop' },
-  { x: 40.5, y: 93.5, texture: 'desktop', type: 'prop' },
-  { x: 44.5, y: 93.5, texture: 'desktop', type: 'prop' },
-  { x: 48.5, y: 93.5, texture: 'desktop', type: 'prop' },
-  { x: 20.5, y: 94.5, texture: 'chair',   type: 'prop' },
-  { x: 28.5, y: 94.5, texture: 'chair',   type: 'prop' },
-  { x: 36.5, y: 94.5, texture: 'chair',   type: 'prop' },
-  { x: 44.5, y: 94.5, texture: 'chair',   type: 'prop' },
-  // Trash bins in aisles
-  { x: 25.5, y: 90.5, texture: 'trashcan',type: 'prop' },
-  { x: 33.5, y: 90.5, texture: 'trashcan',type: 'prop' },
-  { x: 41.5, y: 90.5, texture: 'trashcan',type: 'prop' },
-  { x: 49.5, y: 90.5, texture: 'trashcan',type: 'prop' },
-  { x: 25.5, y: 96.5, texture: 'trashcan',type: 'prop' },
-  { x: 41.5, y: 96.5, texture: 'trashcan',type: 'prop' },
-  // Server room racks
-  { x:  4.5, y:107.5, texture: 'desktop', type: 'prop' },
-  { x:  6.5, y:107.5, texture: 'desktop', type: 'prop' },
-  { x:  8.5, y:107.5, texture: 'desktop', type: 'prop' },
-  { x: 10.5, y:107.5, texture: 'desktop', type: 'prop' },
-  { x:  4.5, y:111.5, texture: 'desktop', type: 'prop' },
-  { x:  6.5, y:111.5, texture: 'desktop', type: 'prop' },
-  { x:  8.5, y:111.5, texture: 'desktop', type: 'prop' },
-  { x: 10.5, y:111.5, texture: 'desktop', type: 'prop' },
-
-  // ── DREAM PROPS — chairs, scattered beautifully ──────────────
-  { x: 60.5, y: 59.5, texture: 'chair',   type: 'prop' },
-  { x: 65.5, y: 59.5, texture: 'chair',   type: 'prop' },
-  { x: 70.5, y: 59.5, texture: 'chair',   type: 'prop' },
-  { x: 75.5, y: 59.5, texture: 'chair',   type: 'prop' },
-  { x: 60.5, y: 65.5, texture: 'trashcan',type: 'prop' },
-  { x: 70.5, y: 65.5, texture: 'trashcan',type: 'prop' },
-  { x: 63.5, y: 70.5, texture: 'chair',   type: 'prop' },
-  { x: 68.5, y: 75.5, texture: 'chair',   type: 'prop' },
-  { x: 73.5, y: 70.5, texture: 'chair',   type: 'prop' },
-  { x: 78.5, y: 75.5, texture: 'chair',   type: 'prop' },
-  { x: 61.5, y: 80.5, texture: 'chair',   type: 'prop' },
-  { x: 66.5, y: 85.5, texture: 'trashcan',type: 'prop' },
-  { x: 71.5, y: 80.5, texture: 'chair',   type: 'prop' },
-  { x: 76.5, y: 85.5, texture: 'chair',   type: 'prop' },
-  { x: 62.5, y: 90.5, texture: 'chair',   type: 'prop' },
-  { x: 72.5, y: 95.5, texture: 'chair',   type: 'prop' },
-  { x: 59.5, y:100.5, texture: 'chair',   type: 'prop' },
-  { x: 64.5, y:105.5, texture: 'trashcan',type: 'prop' },
-  { x: 69.5, y:100.5, texture: 'chair',   type: 'prop' },
-  { x: 74.5, y:105.5, texture: 'chair',   type: 'prop' },
-  { x: 79.5, y:110.5, texture: 'chair',   type: 'prop' },
-  { x: 60.5, y:115.5, texture: 'chair',   type: 'prop' },
-  { x: 65.5, y:120.5, texture: 'trashcan',type: 'prop' },
-  { x: 70.5, y:115.5, texture: 'chair',   type: 'prop' },
-  { x: 75.5, y:120.5, texture: 'chair',   type: 'prop' },
-
-  // ── TADC PROPS — inside the circus ring ─────────────────────
-  { x:104.5, y: 60.5, texture: 'chair',   type: 'prop' },
-  { x:108.5, y: 60.5, texture: 'chair',   type: 'prop' },
-  { x:116.5, y: 60.5, texture: 'chair',   type: 'prop' },
-  { x:120.5, y: 60.5, texture: 'chair',   type: 'prop' },
-  { x:103.5, y: 65.5, texture: 'trashcan',type: 'prop' },
-  { x:113.5, y: 65.5, texture: 'chair',   type: 'prop' },
-  { x:123.5, y: 65.5, texture: 'trashcan',type: 'prop' },
-  { x:108.5, y: 72.5, texture: 'chair',   type: 'prop' },
-  { x:118.5, y: 72.5, texture: 'chair',   type: 'prop' },
-  { x:103.5, y: 79.5, texture: 'trashcan',type: 'prop' },
-  { x:113.5, y: 79.5, texture: 'chair',   type: 'prop' },
-  { x:123.5, y: 79.5, texture: 'chair',   type: 'prop' },
-  { x:106.5, y: 85.5, texture: 'chair',   type: 'prop' },
-  { x:116.5, y: 85.5, texture: 'trashcan',type: 'prop' },
-
-  // ── POOL PROPS — lane dividers, abandoned equipment ──────────
-  { x: 94.5, y:107.5, texture: 'poolLane', type: 'prop' },
-  { x: 97.5, y:107.5, texture: 'poolLane', type: 'prop' },
-  { x:100.5, y:107.5, texture: 'poolLane', type: 'prop' },
-  { x:103.5, y:107.5, texture: 'poolLane', type: 'prop' },
-  { x:106.5, y:107.5, texture: 'poolLane', type: 'prop' },
-  { x:109.5, y:107.5, texture: 'poolLane', type: 'prop' },
-  { x:112.5, y:107.5, texture: 'poolLane', type: 'prop' },
-  { x:115.5, y:107.5, texture: 'poolLane', type: 'prop' },
-  { x:118.5, y:107.5, texture: 'poolLane', type: 'prop' },
-  // Poolside chairs
-  { x: 90.5, y: 92.5, texture: 'chair',   type: 'prop' },
-  { x: 90.5, y: 95.5, texture: 'chair',   type: 'prop' },
-  { x: 90.5, y: 98.5, texture: 'chair',   type: 'prop' },
-  { x: 90.5, y:101.5, texture: 'chair',   type: 'prop' },
-  { x: 90.5, y:104.5, texture: 'chair',   type: 'prop' },
-  { x: 90.5, y:110.5, texture: 'chair',   type: 'prop' },
-  { x: 90.5, y:113.5, texture: 'chair',   type: 'prop' },
-  { x: 90.5, y:116.5, texture: 'chair',   type: 'prop' },
-  { x: 90.5, y:119.5, texture: 'chair',   type: 'prop' },
-  { x:120.5, y: 92.5, texture: 'chair',   type: 'prop' },
-  { x:120.5, y: 96.5, texture: 'chair',   type: 'prop' },
-  { x:120.5, y:100.5, texture: 'chair',   type: 'prop' },
-  { x:120.5, y:104.5, texture: 'chair',   type: 'prop' },
-  { x:120.5, y:112.5, texture: 'chair',   type: 'prop' },
-  { x:120.5, y:116.5, texture: 'chair',   type: 'prop' },
-  // Abandoned trash by bleachers
-  { x: 94.5, y: 96.5, texture: 'trashcan',type: 'prop' },
-  { x:100.5, y: 96.5, texture: 'trashcan',type: 'prop' },
-  { x: 94.5, y:113.5, texture: 'trashcan',type: 'prop' },
-  { x:101.5, y:113.5, texture: 'trashcan',type: 'prop' },
 ];
 
-const PLAYER_START = { x: 2.5, y: 2.5, angle: 0.3 };
+const PLAYER_START = { x: 3.5, y: 4.0, angle: 0 };

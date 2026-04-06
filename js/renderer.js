@@ -42,30 +42,27 @@ const Renderer = (() => {
     window.addEventListener('resize', resize);
 
     // Extract all texture pixels
-    extractPixels('backroomsWall',   TextureLib.backroomsWall);
-    extractPixels('backroomsFloor',  TextureLib.backroomsFloor);
-    extractPixels('backroomsCeiling',TextureLib.backroomsCeiling);
-    extractPixels('officeWall',      TextureLib.officeWall);
-    extractPixels('officeFloor',     TextureLib.officeFloor);
-    extractPixels('officeCeiling',   TextureLib.backroomsCeiling);
-    extractPixels('dreamWall',       TextureLib.dreamWall);
-    extractPixels('dreamFloor',      TextureLib.dreamFloor);
-    extractPixels('dreamCeiling',    TextureLib.dreamCeiling);
-    extractPixels('tadcWall',        TextureLib.tadcWall);
-    extractPixels('tadcFloor',       TextureLib.tadcFloor);
-    extractPixels('tadcCeiling',     TextureLib.tadcCeiling);
-    extractPixels('voidWall',        TextureLib.voidWall);
-    extractPixels('voidFloor',       TextureLib.voidFloor);
-    extractPixels('voidCeiling',     TextureLib.voidWall);
-    extractPixels('exitDoor',        TextureLib.exitDoor);
-    extractPixels('entity',          TextureLib.entity);
-    extractPixels('desktop',         TextureLib.desktop);
-    extractPixels('chair',           TextureLib.chair);
-    extractPixels('trashcan',        TextureLib.trashcan);
-    extractPixels('poolLane',        TextureLib.poolLane);
-    extractPixels('poolWall',        TextureLib.poolWall);
-    extractPixels('poolFloor',       TextureLib.poolFloor);
-    extractPixels('poolCeiling',     TextureLib.poolCeiling);
+    extractPixels('hallwayWall',      TextureLib.hallwayWall);
+    extractPixels('hallwayFloor',     TextureLib.hallwayFloor);
+    extractPixels('hallwayCeiling',   TextureLib.hallwayCeiling);
+    extractPixels('classroomWall',    TextureLib.classroomWall);
+    extractPixels('classroomFloor',   TextureLib.classroomFloor);
+    extractPixels('classroomCeiling', TextureLib.classroomCeiling);
+    extractPixels('poolWall',         TextureLib.poolWall);
+    extractPixels('poolFloor',        TextureLib.poolFloor);
+    extractPixels('poolCeiling',      TextureLib.poolCeiling);
+    extractPixels('mallWall',         TextureLib.mallWall);
+    extractPixels('mallFloor',        TextureLib.mallFloor);
+    extractPixels('mallCeiling',      TextureLib.mallCeiling);
+    extractPixels('hospitalWall',     TextureLib.hospitalWall);
+    extractPixels('hospitalFloor',    TextureLib.hospitalFloor);
+    extractPixels('hospitalCeiling',  TextureLib.hospitalCeiling);
+    extractPixels('voidWall',         TextureLib.voidWall);
+    extractPixels('voidFloor',        TextureLib.voidFloor);
+    extractPixels('exitDoor',         TextureLib.exitDoor);
+    extractPixels('door',             TextureLib.door);
+    extractPixels('placeholder',      TextureLib.placeholder);
+    extractPixels('entity',           TextureLib.entity);
   }
 
   function getTexPixel(name, tx, ty) {
@@ -190,7 +187,7 @@ const Renderer = (() => {
       const absPerp = Math.abs(perpWallDist);
       zBuffer[col] = absPerp;
 
-      const wallH = Math.min(H * 3, Math.floor((H / absPerp) * 1.8));  // *1.8 = taller rooms
+      const wallH = Math.min(H, Math.floor(H / absPerp));
       const wallTop = Math.max(0, Math.floor((H - wallH) / 2));
       const wallBot = Math.min(H - 1, wallTop + wallH);
 
@@ -205,6 +202,8 @@ const Renderer = (() => {
       let wallTexName;
       if (hitCell === CELL.EXIT) {
         wallTexName = 'exitDoor';
+      } else if (hitCell === CELL.DOOR) {
+        wallTexName = 'door';
       } else {
         wallTexName = getTexName(hitZone, 'wall');
       }
@@ -227,20 +226,18 @@ const Renderer = (() => {
           r *= flicker; g *= flicker; b *= flicker;
         }
 
-        // Void flickering — deeper, slower strobe with occasional full blackout
-        if (hitZone === ZONE.VOID) {
-          const slowWave  = Math.sin(t * 1.3 + col * 0.05) * 0.15;
-          const fastNoise = Math.sin(t * 31.7 + col * 0.3) * 0.06;
-          const blackout  = (Math.sin(t * 0.4) > 0.92) ? 0.1 : 1.0; // occasional near-blackout
-          const flicker   = Math.max(0, (0.78 + slowWave + fastNoise)) * blackout;
-          r *= flicker; g *= flicker; b *= flicker;
-        }
-
         // EXIT door: glow teal
         if (hitCell === CELL.EXIT) {
           r = lerp(r, 122, 0.4 + Math.sin(t * 3) * 0.1);
           g = lerp(g, 200, 0.4 + Math.sin(t * 3) * 0.1);
           b = lerp(b, 200, 0.4 + Math.sin(t * 3) * 0.1);
+        }
+        // Walkthrough DOOR: subtle warm pulse to signal passability
+        if (hitCell === CELL.DOOR) {
+          const pulse = 0.05 + Math.sin(t * 1.8) * 0.03;
+          r = lerp(r, 220, pulse);
+          g = lerp(g, 200, pulse);
+          b = lerp(b, 160, pulse);
         }
 
         const idx = (y * W + col) * 4;
@@ -369,9 +366,6 @@ const Renderer = (() => {
       case ZONE.BACKROOMS:
         ctx.fillStyle = `rgba(200,185,80,${0.04 + Math.sin(t * 0.7) * 0.01})`;
         break;
-      case ZONE.POOL:
-        ctx.fillStyle = `rgba(60,110,130,${0.07 + Math.sin(t * 0.4) * 0.02})`;
-        break;
       case ZONE.DREAM:
         ctx.fillStyle = `rgba(230,160,200,${0.06 + Math.sin(t * 0.5) * 0.02})`;
         break;
@@ -390,12 +384,11 @@ const Renderer = (() => {
 
   function getTexName(zone, type) {
     switch (zone) {
-      case ZONE.BACKROOMS: return `backrooms${cap(type)}`;
-      case ZONE.OFFICE:    return `office${cap(type)}`;
+      case ZONE.HALLWAY:   return `hallway${cap(type)}`;
+      case ZONE.CLASSROOM: return `classroom${cap(type)}`;
       case ZONE.POOL:      return `pool${cap(type)}`;
-      case ZONE.DREAM:     return `dream${cap(type)}`;
-      case ZONE.TADC:      return `tadc${cap(type)}`;
-      case ZONE.VOID:      return `void${cap(type)}`;
+      case ZONE.MALL:      return `mall${cap(type)}`;
+      case ZONE.HOSPITAL:  return `hospital${cap(type)}`;
       default:             return `void${cap(type)}`;
     }
   }
