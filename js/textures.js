@@ -319,7 +319,60 @@ const TextureLib = (() => {
     return c;
   }
 
+  // ── CHAIR ─────────────────────────────────────────────────────
+  function makeChair() {
+    const c = makeCanvas(), ctx = c.getContext('2d');
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    // Seat
+    ctx.fillStyle = '#7a6a50';
+    ctx.fillRect(16, 28, 32, 6);
+    // Backrest
+    ctx.fillStyle = '#6a5a42';
+    ctx.fillRect(16, 12, 32, 16);
+    ctx.fillRect(16, 12, 4, 16);
+    ctx.fillRect(44, 12, 4, 16);
+    // Legs
+    ctx.fillStyle = '#5a4a34';
+    ctx.fillRect(18, 34, 4, 18);
+    ctx.fillRect(42, 34, 4, 18);
+    ctx.fillRect(18, 34, 4, 18);
+    ctx.fillRect(42, 34, 4, 18);
+    // Seat cushion highlight
+    ctx.fillStyle = '#8a7a60';
+    ctx.fillRect(18, 28, 28, 3);
+    return c;
+  }
+
+  // ── TRASHCAN ─────────────────────────────────────────────────
+  function makeTrashcan() {
+    const c = makeCanvas(), ctx = c.getContext('2d');
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    // Can body — tapered
+    ctx.fillStyle = '#5a5a50';
+    ctx.beginPath();
+    ctx.moveTo(20, 48); ctx.lineTo(18, 18);
+    ctx.lineTo(46, 18); ctx.lineTo(44, 48);
+    ctx.closePath(); ctx.fill();
+    // Lid
+    ctx.fillStyle = '#6a6a5a';
+    ctx.fillRect(16, 14, 32, 5);
+    // Handle
+    ctx.fillStyle = '#4a4a40';
+    ctx.fillRect(28, 10, 8, 5);
+    // Stripes / texture
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    ctx.fillRect(22, 22, 2, 24);
+    ctx.fillRect(28, 22, 2, 24);
+    ctx.fillRect(34, 22, 2, 24);
+    ctx.fillRect(40, 22, 2, 24);
+    // Highlight
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fillRect(20, 18, 4, 26);
+    return c;
+  }
   return {
+    chair:           makeChair(),
+    trashcan:        makeTrashcan(),
     backroomsWall:   makeBackroomsWall(),
     backroomsFloor:  makeBackroomsFloor(),
     backroomsCeiling:makeBackroomsCeiling(),

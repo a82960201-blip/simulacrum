@@ -60,6 +60,8 @@ const Renderer = (() => {
     extractPixels('exitDoor',        TextureLib.exitDoor);
     extractPixels('entity',          TextureLib.entity);
     extractPixels('desktop',         TextureLib.desktop);
+    extractPixels('chair',           TextureLib.chair);
+    extractPixels('trashcan',        TextureLib.trashcan);
     extractPixels('poolLane',        TextureLib.poolLane);
     extractPixels('poolWall',        TextureLib.poolWall);
     extractPixels('poolFloor',       TextureLib.poolFloor);
@@ -188,7 +190,7 @@ const Renderer = (() => {
       const absPerp = Math.abs(perpWallDist);
       zBuffer[col] = absPerp;
 
-      const wallH = Math.min(H, Math.floor(H / absPerp));
+      const wallH = Math.min(H * 3, Math.floor((H / absPerp) * 1.8));  // *1.8 = taller rooms
       const wallTop = Math.max(0, Math.floor((H - wallH) / 2));
       const wallBot = Math.min(H - 1, wallTop + wallH);
 
@@ -222,6 +224,15 @@ const Renderer = (() => {
         // Fluorescent flicker effect (backrooms + office)
         if (hitZone === ZONE.BACKROOMS || hitZone === ZONE.OFFICE) {
           const flicker = 0.92 + Math.sin(t * 17 + col * 0.1) * 0.04 + Math.random() * 0.02;
+          r *= flicker; g *= flicker; b *= flicker;
+        }
+
+        // Void flickering — deeper, slower strobe with occasional full blackout
+        if (hitZone === ZONE.VOID) {
+          const slowWave  = Math.sin(t * 1.3 + col * 0.05) * 0.15;
+          const fastNoise = Math.sin(t * 31.7 + col * 0.3) * 0.06;
+          const blackout  = (Math.sin(t * 0.4) > 0.92) ? 0.1 : 1.0; // occasional near-blackout
+          const flicker   = Math.max(0, (0.78 + slowWave + fastNoise)) * blackout;
           r *= flicker; g *= flicker; b *= flicker;
         }
 

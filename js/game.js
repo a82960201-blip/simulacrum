@@ -1,8 +1,8 @@
 // game.js — Player controller, game loop, joysticks, orientation lock
 
 const Game = (() => {
-  const MOVE_SPEED    = 0.055;
-  const ROT_SPEED     = 0.002;
+  const MOVE_SPEED    = 0.028;  // was 0.055 — halved
+  const ROT_SPEED     = 0.0015; // was 0.002 — slower mouse
   const PLAYER_RADIUS = 0.25;
 
   const isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
@@ -200,7 +200,7 @@ const Game = (() => {
     mouseDX = 0;
     if (keys['ArrowLeft']  || keys['KeyQ']) player.angle -= ROT_SPEED*10*dt;
     if (keys['ArrowRight'] || keys['KeyE']) player.angle += ROT_SPEED*10*dt;
-    if (joy.right.active) player.angle += joy.right.dx * ROT_SPEED * 14 * dt;
+    if (joy.right.active) player.angle += joy.right.dx * ROT_SPEED * 7 * dt;  // was 14
 
     // Movement
     let mx = 0, my = 0;
@@ -211,8 +211,8 @@ const Game = (() => {
     if (keys['KeyD']) { mx+=Math.cos(player.angle+Math.PI/2)*spd; my+=Math.sin(player.angle+Math.PI/2)*spd; }
     if (joy.left.active) {
       const fwd=-joy.left.dy, str=joy.left.dx;
-      mx += (Math.cos(player.angle)*fwd + Math.cos(player.angle+Math.PI/2)*str)*spd*1.5;
-      my += (Math.sin(player.angle)*fwd + Math.sin(player.angle+Math.PI/2)*str)*spd*1.5;
+      mx += (Math.cos(player.angle)*fwd + Math.cos(player.angle+Math.PI/2)*str)*spd*1.0;  // was 1.5
+      my += (Math.sin(player.angle)*fwd + Math.sin(player.angle+Math.PI/2)*str)*spd*1.0;
     }
 
     const nx = player.x+mx, ny = player.y+my;

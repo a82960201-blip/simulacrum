@@ -94,12 +94,12 @@ function buildMap() {
     vwall(vx, 1, 54, [4,5,6,7, 13,14,15,16, 22,23,24,25, 31,32,33,34, 40,41,42,43, 49,50,51,52]);
   }
 
-  // Some void chambers — small dark rooms to discover
-  rect(59,2,63,7);   // NW void room
-  rect(118,2,125,7); // NE void room
-  rect(59,47,66,53); // SW void room
-  rect(118,47,125,53); // SE void room
-  rect(88,22,100,32); // Central void chamber
+  // Some void chambers — small dark rooms to discover (NO big central chamber — was appearing white)
+  rect(59,2,63,7);     // NW void alcove
+  rect(118,2,125,7);   // NE void alcove
+  rect(59,47,66,53);   // SW void alcove
+  rect(118,47,125,53); // SE void alcove
+  // NOTE: removed rect(88,22,100,32) — this was the white maze room
 
   // ── OFFICE BACKROOMS (x:1–54, y:57–126) ─────────────────────
   // Grid-like corridors, cubicle rows, 1995 desktops
@@ -285,33 +285,236 @@ function getZoneName(zone) {
 
 // ── Sprites ────────────────────────────────────────────────────
 const SPRITES = [
-  // Entity — lurking in the void
+
+  // ── ENTITY — lurking in the void ────────────────────────────
   {
     x: 85.5, y: 28.5,
     texture: 'entity', type: 'entity',
     hint: "keep going south-east. where the tiles turn wet and the lights go blue. the exit breathes at the bottom of the pool."
   },
-  // 1995 desktop computers in the office
-  { x: 3.5,  y: 60.5, texture: 'desktop', type: 'prop' },
-  { x: 3.5,  y: 67.5, texture: 'desktop', type: 'prop' },
-  { x: 3.5,  y: 74.5, texture: 'desktop', type: 'prop' },
-  { x: 13.5, y: 60.5, texture: 'desktop', type: 'prop' },
-  { x: 13.5, y: 67.5, texture: 'desktop', type: 'prop' },
-  { x: 22.5, y: 85.5, texture: 'desktop', type: 'prop' },
-  { x: 26.5, y: 85.5, texture: 'desktop', type: 'prop' },
-  { x: 30.5, y: 85.5, texture: 'desktop', type: 'prop' },
-  { x: 34.5, y: 85.5, texture: 'desktop', type: 'prop' },
-  { x: 38.5, y: 85.5, texture: 'desktop', type: 'prop' },
-  { x: 42.5, y: 85.5, texture: 'desktop', type: 'prop' },
-  { x: 22.5, y: 95.5, texture: 'desktop', type: 'prop' },
-  { x: 26.5, y: 95.5, texture: 'desktop', type: 'prop' },
-  { x: 30.5, y: 95.5, texture: 'desktop', type: 'prop' },
-  { x: 34.5, y: 95.5, texture: 'desktop', type: 'prop' },
-  // Pool — lane dividers (visual markers)
-  { x: 97.5, y: 107.5, texture: 'poolLane', type: 'prop' },
-  { x: 103.5, y: 107.5, texture: 'poolLane', type: 'prop' },
-  { x: 109.5, y: 107.5, texture: 'poolLane', type: 'prop' },
-  { x: 115.5, y: 107.5, texture: 'poolLane', type: 'prop' },
+
+  // ── BACKROOMS PROPS ──────────────────────────────────────────
+  // Scattered chairs and tables in the open corridors
+  { x:  5.5, y:  2.5, texture: 'chair',   type: 'prop' },
+  { x: 12.5, y:  2.5, texture: 'chair',   type: 'prop' },
+  { x:  2.5, y:  9.5, texture: 'chair',   type: 'prop' },
+  { x:  6.5, y: 10.5, texture: 'chair',   type: 'prop' },
+  { x: 15.5, y:  9.5, texture: 'chair',   type: 'prop' },
+  { x: 22.5, y:  2.5, texture: 'chair',   type: 'prop' },
+  { x: 30.5, y:  2.5, texture: 'chair',   type: 'prop' },
+  { x: 38.5, y:  2.5, texture: 'chair',   type: 'prop' },
+  { x: 46.5, y:  2.5, texture: 'chair',   type: 'prop' },
+  { x:  2.5, y: 16.5, texture: 'chair',   type: 'prop' },
+  { x:  2.5, y: 23.5, texture: 'chair',   type: 'prop' },
+  { x:  2.5, y: 30.5, texture: 'chair',   type: 'prop' },
+  { x:  2.5, y: 38.5, texture: 'chair',   type: 'prop' },
+  { x:  2.5, y: 46.5, texture: 'chair',   type: 'prop' },
+  { x: 10.5, y: 16.5, texture: 'chair',   type: 'prop' },
+  { x: 20.5, y: 23.5, texture: 'chair',   type: 'prop' },
+  { x: 30.5, y: 30.5, texture: 'chair',   type: 'prop' },
+  { x: 42.5, y: 38.5, texture: 'chair',   type: 'prop' },
+  { x: 50.5, y: 46.5, texture: 'chair',   type: 'prop' },
+  { x: 13.5, y: 30.5, texture: 'chair',   type: 'prop' },
+  { x: 24.5, y: 16.5, texture: 'trashcan',type: 'prop' },
+  { x: 36.5, y: 22.5, texture: 'trashcan',type: 'prop' },
+  { x:  7.5, y: 36.5, texture: 'trashcan',type: 'prop' },
+  { x: 46.5, y: 10.5, texture: 'trashcan',type: 'prop' },
+  { x: 50.5, y: 38.5, texture: 'trashcan',type: 'prop' },
+  // Room C big open section
+  { x: 22.5, y: 17.5, texture: 'chair',   type: 'prop' },
+  { x: 25.5, y: 17.5, texture: 'chair',   type: 'prop' },
+  { x: 28.5, y: 17.5, texture: 'chair',   type: 'prop' },
+  { x: 31.5, y: 17.5, texture: 'chair',   type: 'prop' },
+  { x: 22.5, y: 22.5, texture: 'chair',   type: 'prop' },
+  { x: 28.5, y: 22.5, texture: 'chair',   type: 'prop' },
+  { x: 32.5, y: 22.5, texture: 'trashcan',type: 'prop' },
+
+  // ── VOID PROPS — sparse but creepy ──────────────────────────
+  { x: 61.5, y:  4.5, texture: 'chair',   type: 'prop' },
+  { x: 70.5, y:  4.5, texture: 'trashcan',type: 'prop' },
+  { x: 80.5, y:  4.5, texture: 'chair',   type: 'prop' },
+  { x: 90.5, y:  4.5, texture: 'chair',   type: 'prop' },
+  { x:100.5, y:  4.5, texture: 'trashcan',type: 'prop' },
+  { x:110.5, y:  4.5, texture: 'chair',   type: 'prop' },
+  { x: 61.5, y: 50.5, texture: 'chair',   type: 'prop' },
+  { x: 75.5, y: 50.5, texture: 'trashcan',type: 'prop' },
+  { x: 90.5, y: 50.5, texture: 'chair',   type: 'prop' },
+  { x:110.5, y: 50.5, texture: 'chair',   type: 'prop' },
+  { x: 68.5, y: 20.5, texture: 'chair',   type: 'prop' },
+  { x: 80.5, y: 15.5, texture: 'chair',   type: 'prop' },
+  { x: 95.5, y: 40.5, texture: 'trashcan',type: 'prop' },
+  { x:115.5, y: 25.5, texture: 'chair',   type: 'prop' },
+
+  // ── OFFICE PROPS — desktops, chairs, trash everywhere ───────
+  // Cluster A rooms
+  { x:  3.5, y: 59.5, texture: 'desktop', type: 'prop' },
+  { x:  4.5, y: 59.5, texture: 'desktop', type: 'prop' },
+  { x:  3.5, y: 60.5, texture: 'chair',   type: 'prop' },
+  { x:  3.5, y: 66.5, texture: 'desktop', type: 'prop' },
+  { x:  4.5, y: 66.5, texture: 'desktop', type: 'prop' },
+  { x:  3.5, y: 67.5, texture: 'chair',   type: 'prop' },
+  { x:  3.5, y: 73.5, texture: 'desktop', type: 'prop' },
+  { x:  4.5, y: 73.5, texture: 'chair',   type: 'prop' },
+  // Cluster B rooms
+  { x: 11.5, y: 59.5, texture: 'desktop', type: 'prop' },
+  { x: 13.5, y: 59.5, texture: 'desktop', type: 'prop' },
+  { x: 15.5, y: 59.5, texture: 'desktop', type: 'prop' },
+  { x: 11.5, y: 60.5, texture: 'chair',   type: 'prop' },
+  { x: 15.5, y: 60.5, texture: 'chair',   type: 'prop' },
+  { x: 11.5, y: 66.5, texture: 'desktop', type: 'prop' },
+  { x: 13.5, y: 66.5, texture: 'desktop', type: 'prop' },
+  { x: 14.5, y: 67.5, texture: 'chair',   type: 'prop' },
+  { x: 11.5, y: 68.5, texture: 'trashcan',type: 'prop' },
+  // Corridors between cubicles — scattered
+  { x:  5.5, y: 64.5, texture: 'trashcan',type: 'prop' },
+  { x:  9.5, y: 71.5, texture: 'chair',   type: 'prop' },
+  { x: 17.5, y: 64.5, texture: 'trashcan',type: 'prop' },
+  { x: 17.5, y: 71.5, texture: 'chair',   type: 'prop' },
+  // Big open office floor — rows of desktops
+  { x: 20.5, y: 82.5, texture: 'desktop', type: 'prop' },
+  { x: 21.5, y: 82.5, texture: 'desktop', type: 'prop' },
+  { x: 23.5, y: 82.5, texture: 'desktop', type: 'prop' },
+  { x: 24.5, y: 82.5, texture: 'desktop', type: 'prop' },
+  { x: 27.5, y: 82.5, texture: 'desktop', type: 'prop' },
+  { x: 28.5, y: 82.5, texture: 'desktop', type: 'prop' },
+  { x: 31.5, y: 82.5, texture: 'desktop', type: 'prop' },
+  { x: 32.5, y: 82.5, texture: 'desktop', type: 'prop' },
+  { x: 35.5, y: 82.5, texture: 'desktop', type: 'prop' },
+  { x: 36.5, y: 82.5, texture: 'desktop', type: 'prop' },
+  { x: 39.5, y: 82.5, texture: 'desktop', type: 'prop' },
+  { x: 40.5, y: 82.5, texture: 'desktop', type: 'prop' },
+  { x: 43.5, y: 82.5, texture: 'desktop', type: 'prop' },
+  { x: 44.5, y: 82.5, texture: 'desktop', type: 'prop' },
+  { x: 47.5, y: 82.5, texture: 'desktop', type: 'prop' },
+  { x: 48.5, y: 82.5, texture: 'desktop', type: 'prop' },
+  // Chairs at each desk
+  { x: 20.5, y: 83.5, texture: 'chair', type: 'prop' },
+  { x: 23.5, y: 83.5, texture: 'chair', type: 'prop' },
+  { x: 27.5, y: 83.5, texture: 'chair', type: 'prop' },
+  { x: 31.5, y: 83.5, texture: 'chair', type: 'prop' },
+  { x: 35.5, y: 83.5, texture: 'chair', type: 'prop' },
+  { x: 39.5, y: 83.5, texture: 'chair', type: 'prop' },
+  { x: 43.5, y: 83.5, texture: 'chair', type: 'prop' },
+  { x: 47.5, y: 83.5, texture: 'chair', type: 'prop' },
+  // Second row of desks
+  { x: 20.5, y: 87.5, texture: 'desktop', type: 'prop' },
+  { x: 24.5, y: 87.5, texture: 'desktop', type: 'prop' },
+  { x: 28.5, y: 87.5, texture: 'desktop', type: 'prop' },
+  { x: 32.5, y: 87.5, texture: 'desktop', type: 'prop' },
+  { x: 36.5, y: 87.5, texture: 'desktop', type: 'prop' },
+  { x: 40.5, y: 87.5, texture: 'desktop', type: 'prop' },
+  { x: 44.5, y: 87.5, texture: 'desktop', type: 'prop' },
+  { x: 48.5, y: 87.5, texture: 'desktop', type: 'prop' },
+  { x: 20.5, y: 88.5, texture: 'chair',   type: 'prop' },
+  { x: 24.5, y: 88.5, texture: 'chair',   type: 'prop' },
+  { x: 28.5, y: 88.5, texture: 'chair',   type: 'prop' },
+  { x: 32.5, y: 88.5, texture: 'chair',   type: 'prop' },
+  { x: 36.5, y: 88.5, texture: 'chair',   type: 'prop' },
+  { x: 40.5, y: 88.5, texture: 'chair',   type: 'prop' },
+  // Third row
+  { x: 20.5, y: 93.5, texture: 'desktop', type: 'prop' },
+  { x: 24.5, y: 93.5, texture: 'desktop', type: 'prop' },
+  { x: 28.5, y: 93.5, texture: 'desktop', type: 'prop' },
+  { x: 32.5, y: 93.5, texture: 'desktop', type: 'prop' },
+  { x: 36.5, y: 93.5, texture: 'desktop', type: 'prop' },
+  { x: 40.5, y: 93.5, texture: 'desktop', type: 'prop' },
+  { x: 44.5, y: 93.5, texture: 'desktop', type: 'prop' },
+  { x: 48.5, y: 93.5, texture: 'desktop', type: 'prop' },
+  { x: 20.5, y: 94.5, texture: 'chair',   type: 'prop' },
+  { x: 28.5, y: 94.5, texture: 'chair',   type: 'prop' },
+  { x: 36.5, y: 94.5, texture: 'chair',   type: 'prop' },
+  { x: 44.5, y: 94.5, texture: 'chair',   type: 'prop' },
+  // Trash bins in aisles
+  { x: 25.5, y: 90.5, texture: 'trashcan',type: 'prop' },
+  { x: 33.5, y: 90.5, texture: 'trashcan',type: 'prop' },
+  { x: 41.5, y: 90.5, texture: 'trashcan',type: 'prop' },
+  { x: 49.5, y: 90.5, texture: 'trashcan',type: 'prop' },
+  { x: 25.5, y: 96.5, texture: 'trashcan',type: 'prop' },
+  { x: 41.5, y: 96.5, texture: 'trashcan',type: 'prop' },
+  // Server room racks
+  { x:  4.5, y:107.5, texture: 'desktop', type: 'prop' },
+  { x:  6.5, y:107.5, texture: 'desktop', type: 'prop' },
+  { x:  8.5, y:107.5, texture: 'desktop', type: 'prop' },
+  { x: 10.5, y:107.5, texture: 'desktop', type: 'prop' },
+  { x:  4.5, y:111.5, texture: 'desktop', type: 'prop' },
+  { x:  6.5, y:111.5, texture: 'desktop', type: 'prop' },
+  { x:  8.5, y:111.5, texture: 'desktop', type: 'prop' },
+  { x: 10.5, y:111.5, texture: 'desktop', type: 'prop' },
+
+  // ── DREAM PROPS — chairs, scattered beautifully ──────────────
+  { x: 60.5, y: 59.5, texture: 'chair',   type: 'prop' },
+  { x: 65.5, y: 59.5, texture: 'chair',   type: 'prop' },
+  { x: 70.5, y: 59.5, texture: 'chair',   type: 'prop' },
+  { x: 75.5, y: 59.5, texture: 'chair',   type: 'prop' },
+  { x: 60.5, y: 65.5, texture: 'trashcan',type: 'prop' },
+  { x: 70.5, y: 65.5, texture: 'trashcan',type: 'prop' },
+  { x: 63.5, y: 70.5, texture: 'chair',   type: 'prop' },
+  { x: 68.5, y: 75.5, texture: 'chair',   type: 'prop' },
+  { x: 73.5, y: 70.5, texture: 'chair',   type: 'prop' },
+  { x: 78.5, y: 75.5, texture: 'chair',   type: 'prop' },
+  { x: 61.5, y: 80.5, texture: 'chair',   type: 'prop' },
+  { x: 66.5, y: 85.5, texture: 'trashcan',type: 'prop' },
+  { x: 71.5, y: 80.5, texture: 'chair',   type: 'prop' },
+  { x: 76.5, y: 85.5, texture: 'chair',   type: 'prop' },
+  { x: 62.5, y: 90.5, texture: 'chair',   type: 'prop' },
+  { x: 72.5, y: 95.5, texture: 'chair',   type: 'prop' },
+  { x: 59.5, y:100.5, texture: 'chair',   type: 'prop' },
+  { x: 64.5, y:105.5, texture: 'trashcan',type: 'prop' },
+  { x: 69.5, y:100.5, texture: 'chair',   type: 'prop' },
+  { x: 74.5, y:105.5, texture: 'chair',   type: 'prop' },
+  { x: 79.5, y:110.5, texture: 'chair',   type: 'prop' },
+  { x: 60.5, y:115.5, texture: 'chair',   type: 'prop' },
+  { x: 65.5, y:120.5, texture: 'trashcan',type: 'prop' },
+  { x: 70.5, y:115.5, texture: 'chair',   type: 'prop' },
+  { x: 75.5, y:120.5, texture: 'chair',   type: 'prop' },
+
+  // ── TADC PROPS — inside the circus ring ─────────────────────
+  { x:104.5, y: 60.5, texture: 'chair',   type: 'prop' },
+  { x:108.5, y: 60.5, texture: 'chair',   type: 'prop' },
+  { x:116.5, y: 60.5, texture: 'chair',   type: 'prop' },
+  { x:120.5, y: 60.5, texture: 'chair',   type: 'prop' },
+  { x:103.5, y: 65.5, texture: 'trashcan',type: 'prop' },
+  { x:113.5, y: 65.5, texture: 'chair',   type: 'prop' },
+  { x:123.5, y: 65.5, texture: 'trashcan',type: 'prop' },
+  { x:108.5, y: 72.5, texture: 'chair',   type: 'prop' },
+  { x:118.5, y: 72.5, texture: 'chair',   type: 'prop' },
+  { x:103.5, y: 79.5, texture: 'trashcan',type: 'prop' },
+  { x:113.5, y: 79.5, texture: 'chair',   type: 'prop' },
+  { x:123.5, y: 79.5, texture: 'chair',   type: 'prop' },
+  { x:106.5, y: 85.5, texture: 'chair',   type: 'prop' },
+  { x:116.5, y: 85.5, texture: 'trashcan',type: 'prop' },
+
+  // ── POOL PROPS — lane dividers, abandoned equipment ──────────
+  { x: 94.5, y:107.5, texture: 'poolLane', type: 'prop' },
+  { x: 97.5, y:107.5, texture: 'poolLane', type: 'prop' },
+  { x:100.5, y:107.5, texture: 'poolLane', type: 'prop' },
+  { x:103.5, y:107.5, texture: 'poolLane', type: 'prop' },
+  { x:106.5, y:107.5, texture: 'poolLane', type: 'prop' },
+  { x:109.5, y:107.5, texture: 'poolLane', type: 'prop' },
+  { x:112.5, y:107.5, texture: 'poolLane', type: 'prop' },
+  { x:115.5, y:107.5, texture: 'poolLane', type: 'prop' },
+  { x:118.5, y:107.5, texture: 'poolLane', type: 'prop' },
+  // Poolside chairs
+  { x: 90.5, y: 92.5, texture: 'chair',   type: 'prop' },
+  { x: 90.5, y: 95.5, texture: 'chair',   type: 'prop' },
+  { x: 90.5, y: 98.5, texture: 'chair',   type: 'prop' },
+  { x: 90.5, y:101.5, texture: 'chair',   type: 'prop' },
+  { x: 90.5, y:104.5, texture: 'chair',   type: 'prop' },
+  { x: 90.5, y:110.5, texture: 'chair',   type: 'prop' },
+  { x: 90.5, y:113.5, texture: 'chair',   type: 'prop' },
+  { x: 90.5, y:116.5, texture: 'chair',   type: 'prop' },
+  { x: 90.5, y:119.5, texture: 'chair',   type: 'prop' },
+  { x:120.5, y: 92.5, texture: 'chair',   type: 'prop' },
+  { x:120.5, y: 96.5, texture: 'chair',   type: 'prop' },
+  { x:120.5, y:100.5, texture: 'chair',   type: 'prop' },
+  { x:120.5, y:104.5, texture: 'chair',   type: 'prop' },
+  { x:120.5, y:112.5, texture: 'chair',   type: 'prop' },
+  { x:120.5, y:116.5, texture: 'chair',   type: 'prop' },
+  // Abandoned trash by bleachers
+  { x: 94.5, y: 96.5, texture: 'trashcan',type: 'prop' },
+  { x:100.5, y: 96.5, texture: 'trashcan',type: 'prop' },
+  { x: 94.5, y:113.5, texture: 'trashcan',type: 'prop' },
+  { x:101.5, y:113.5, texture: 'trashcan',type: 'prop' },
 ];
 
 const PLAYER_START = { x: 2.5, y: 2.5, angle: 0.3 };
