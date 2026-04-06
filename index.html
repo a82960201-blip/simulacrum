@@ -6,82 +6,96 @@
   <meta name="theme-color" content="#0a0a08" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>SIMULACRUM</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=VT323&family=Courier+Prime:wght@400;700&display=swap" />
+  <title>SIMULACRUM — THE SOFT LOOP</title>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
 
-  <!-- TITLE SCREEN -->
   <div id="title-screen">
     <div class="vhs-overlay"></div>
     <div class="scanlines"></div>
     <div class="title-content">
       <div class="glitch-text" data-text="SIMULACRUM">SIMULACRUM</div>
-      <div class="subtitle">you clipped out of reality</div>
-      <div class="sub2">find the exit</div>
+      <div class="subtitle">something is with you</div>
+      <div class="sub2">collect memories. find the exit. don't let it touch you.</div>
       <button id="start-btn">[ ENTER ]</button>
-      <div class="controls-hint" id="controls-hint">
-        WASD / Arrow Keys — Move &nbsp;|&nbsp; Mouse — Look
-      </div>
+      <div class="controls-hint" id="controls-hint">WASD / Arrows — Move | Mouse — Look | Click to lock</div>
     </div>
   </div>
 
-  <!-- GAME SCREEN -->
   <div id="game-screen" class="hidden">
     <canvas id="gameCanvas"></canvas>
 
-    <!-- HUD overlays -->
     <div class="vhs-overlay"></div>
     <div class="scanlines"></div>
+    
+    <!-- HUD -->
     <div id="vhs-timestamp">REC ● 1995/08/14 &nbsp; 03:17:42</div>
     <div id="crosshair">+</div>
-
+    
+    <!-- Proximity warning (heartbeat) -->
+    <div id="proximity-warning" class="hidden"></div>
+    
     <!-- Message popup -->
-    <div id="message-box" class="hidden">
-      <div id="message-text"></div>
-    </div>
-
+    <div id="message-box" class="hidden"><div id="message-text"></div></div>
+    
     <!-- Zone label -->
     <div id="zone-label"></div>
-
+    
     <!-- Compass -->
     <div id="compass">N</div>
-
-    <!-- Found hint indicator -->
+    
+    <!-- Objectives panel -->
+    <div id="objectives-panel">
+      <div class="obj-title">✦ MEMORY FRAGMENTS ✦</div>
+      <div id="obj-list"></div>
+    </div>
+    
+    <!-- Minimap -->
+    <div id="minimap-container">
+      <canvas id="minimap-canvas" width="160" height="160"></canvas>
+      <div class="minimap-label">MAP</div>
+    </div>
+    
+    <!-- Hint panel -->
     <div id="hint-panel" class="hidden">
       <div class="hint-title">▶ TRANSMISSION</div>
       <div id="hint-content"></div>
     </div>
+    
+    <!-- Death screen -->
+    <div id="death-screen" class="hidden">
+      <div class="death-content">
+        <div class="death-title">IT FOUND YOU</div>
+        <div class="death-sub">the soft loop continues...</div>
+        <button id="respawn-btn">[ TRY AGAIN ]</button>
+      </div>
+    </div>
+    
+    <!-- Escape screen -->
+    <div id="escape-screen" class="hidden">
+      <div class="escape-content">
+        <div class="escape-title">YOU FOUND THE EXIT</div>
+        <div class="escape-sub">the loop breaks... for now</div>
+        <button id="restart-btn">[ PLAY AGAIN ]</button>
+      </div>
+    </div>
 
     <!-- Mobile joysticks -->
     <div id="joystick-left" class="joystick-zone">
-      <div class="joystick-base">
-        <div class="joystick-knob" id="knob-left"></div>
-      </div>
+      <div class="joystick-base"><div class="joystick-knob" id="knob-left"></div></div>
     </div>
     <div id="joystick-right" class="joystick-zone">
-      <div class="joystick-base">
-        <div class="joystick-knob" id="knob-right"></div>
-      </div>
-    </div>
-
-    <!-- Escape screen -->
-    <div id="escape-screen" class="hidden">
-      <div class="vhs-overlay"></div>
-      <div class="scanlines"></div>
-      <div class="escape-content">
-        <div class="escape-title">YOU FOUND THE EXIT</div>
-        <div class="escape-sub">but did you really escape?</div>
-        <button id="restart-btn">[ PLAY AGAIN ]</button>
-      </div>
+      <div class="joystick-base"><div class="joystick-knob" id="knob-right"></div></div>
     </div>
   </div>
 
   <script src="js/textures.js"></script>
   <script src="js/world.js"></script>
+  <script src="js/objectives.js"></script>
+  <script src="js/monster.js"></script>
+  <script src="js/minimap.js"></script>
   <script src="js/audio.js"></script>
   <script src="js/renderer.js"></script>
   <script src="js/game.js"></script>
