@@ -438,3 +438,28 @@ html, body {
 
 /* ─── HIDDEN ──────────────────────────────────────────────── */
 .hidden { display: none !important; }
+
+/* ─── ZONE-SPECIFIC HUD OVERRIDES (set via JS class on body) ─ */
+body.zone-backrooms #zone-label { color: rgba(200,185,80,0.7); }
+body.zone-school    #zone-label { color: rgba(195,205,175,0.6); }
+body.zone-pool      #zone-label { color: rgba(100,200,220,0.7); }
+body.zone-dream     #zone-label { color: rgba(235,185,215,0.75); }
+body.zone-circus    #zone-label { color: rgba(255,80,120,0.8);
+  animation: glitch1 0.4s infinite; }
+
+/* Circus mode — title glitch amplified */
+body.zone-circus #vhs-timestamp { color: #ff4070; }
+body.zone-circus #compass { color: rgba(255,80,120,0.6); }
+
+/* Pool mode — teal tint on HUD */
+body.zone-pool #vhs-timestamp { color: rgba(100,210,225,0.8); }
+body.zone-pool #compass { color: rgba(100,210,225,0.5); }
+
+/* Dream — soft pink */
+body.zone-dream #vhs-timestamp { color: rgba(230,160,195,0.8); }
+
+/* ─── ENTITY HINT PANEL — zone coloring ──────────────────── */
+body.zone-circus  #hint-panel { border-left-color: #ff4070; }
+body.zone-pool    #hint-panel { border-left-color: #7acec8; }
+body.zone-dream   #hint-panel { border-left-color: rgba(230,160,210,0.9); }
+body.zone-school  #hint-panel { border-left-color: rgba(190,200,165,0.8); }
