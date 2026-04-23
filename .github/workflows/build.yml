@@ -44,7 +44,7 @@ jobs:
 
       - name: Fix capacitor config
         run: |
-          sed -i "s|webDir: '.'|webDir: 'www'|g" capacitor.config.ts
+          sed -i "s|webDir: '.'|g" capacitor.config.ts
 
       - name: Add Android platform
         run: npx cap add android
