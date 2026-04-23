@@ -1,189 +1,151 @@
-// audio.js — Procedural ambient audio: soft music box + drone + playground
+// ============================================================
+//  AUDIO.JS — Upbeat procedural sound effects via Web Audio
+// ============================================================
 
-const AudioEngine = (() => {
+const SFX = (() => {
   let ctx = null;
-  let masterGain = null;
-  let started = false;
 
-  // Pentatonic scale in Hz — dream-like, child-like
-  const PENTATONIC = [261.63, 293.66, 329.63, 392.0, 440.0, 523.25, 587.33, 659.26];
-  const LOW_DRONE = [55, 82.41, 110];
-
-  function init() {
-    if (started) return;
-    ctx = new (window.AudioContext || window.webkitAudioContext)();
-    masterGain = ctx.createGain();
-    masterGain.gain.setValueAtTime(0.18, ctx.currentTime);
-    masterGain.connect(ctx.destination);
-    started = true;
-
-    startDrone();
-    startMusicBox();
-    startPlayground();
-    startGlitch();
+  function getCtx() {
+    if (!ctx) {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    // Resume if suspended (autoplay policy)
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
   }
 
-  // Deep drone — the backrooms hum
-  function startDrone() {
-    LOW_DRONE.forEach((freq, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      const filter = ctx.createBiquadFilter();
+  // Unlock on first interaction
+  document.addEventListener('touchstart', () => getCtx(), { once: true });
+  document.addEventListener('mousedown',  () => getCtx(), { once: true });
+  document.addEventListener('keydown',    () => getCtx(), { once: true });
 
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      // Slight detune wobble
-      osc.frequency.setTargetAtTime(freq * 1.002, ctx.currentTime + 3, 4);
-      osc.frequency.setTargetAtTime(freq * 0.999, ctx.currentTime + 8, 4);
+  // ── Utility: play a tone burst ──
+  function tone(freq, type, gainVal, duration, attack, decay, detune = 0) {
+    try {
+      const ac = getCtx();
+      const osc  = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      osc.detune.value = detune;
+      gain.gain.setValueAtTime(0, ac.currentTime);
+      gain.gain.linearRampToValueAtTime(gainVal, ac.currentTime + attack);
+      gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.start(ac.currentTime);
+      osc.stop(ac.currentTime + duration + 0.05);
+    } catch(e) {}
+  }
 
-      filter.type = 'lowpass';
-      filter.frequency.setValueAtTime(300 + i * 80, ctx.currentTime);
+  function sweep(freqStart, freqEnd, type, gainVal, duration) {
+    try {
+      const ac = getCtx();
+      const osc  = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freqStart, ac.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(freqEnd, ac.currentTime + duration);
+      gain.gain.setValueAtTime(gainVal, ac.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.start(ac.currentTime);
+      osc.stop(ac.currentTime + duration + 0.05);
+    } catch(e) {}
+  }
 
-      gain.gain.setValueAtTime(0.06 - i * 0.015, ctx.currentTime);
+  function noise(gainVal, duration, filterFreq = 800) {
+    try {
+      const ac = getCtx();
+      const buf = ac.createBuffer(1, ac.sampleRate * duration, ac.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      const src    = ac.createBufferSource();
+      const filter = ac.createBiquadFilter();
+      const gain   = ac.createGain();
+      src.buffer = buf;
+      filter.type = 'bandpass';
+      filter.frequency.value = filterFreq;
+      gain.gain.setValueAtTime(gainVal, ac.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + duration);
+      src.connect(filter); filter.connect(gain); gain.connect(ac.destination);
+      src.start();
+    } catch(e) {}
+  }
 
-      osc.connect(filter);
-      filter.connect(gain);
-      gain.connect(masterGain);
-      osc.start();
+  // ── Sound definitions ──
+
+  function jump() {
+    // Bright upward chirp
+    sweep(260, 520, 'square', 0.18, 0.12);
+    sweep(320, 640, 'sine',   0.10, 0.10);
+  }
+
+  function doubleJump() {
+    // Two-tone sparkle
+    sweep(400, 800, 'square', 0.16, 0.10);
+    setTimeout(() => sweep(500, 1000, 'sine', 0.12, 0.09), 50);
+    setTimeout(() => tone(1200, 'sine', 0.06, 0.12, 0.01, 0.12), 100);
+  }
+
+  function land(intensity) {
+    const vel = Math.min(intensity, 20);
+    const freq = 80 + vel * 4;
+    noise(0.12 + vel * 0.006, 0.12, freq * 2);
+    sweep(freq * 2, freq * 0.5, 'sine', 0.14, 0.10);
+  }
+
+  function spring() {
+    // Bouncy boing — fast sweep up with wobble
+    sweep(180, 900, 'sine', 0.22, 0.18);
+    setTimeout(() => sweep(900, 1200, 'sine', 0.12, 0.10), 100);
+    setTimeout(() => sweep(1200, 800, 'sine', 0.06, 0.12), 180);
+  }
+
+  function dash() {
+    // Whoosh + crackle
+    sweep(600, 1400, 'sawtooth', 0.12, 0.08);
+    noise(0.08, 0.08, 2000);
+    setTimeout(() => sweep(1400, 200, 'square', 0.08, 0.12), 60);
+  }
+
+  function stomp() {
+    // Satisfying squish pop
+    sweep(300, 80, 'square', 0.20, 0.10);
+    noise(0.10, 0.10, 400);
+    setTimeout(() => tone(600, 'sine', 0.10, 0.08, 0.005, 0.08), 40);
+  }
+
+  function powerup() {
+    // Ascending arpeggio — upbeat and celebratory
+    const notes = [523, 659, 784, 1047]; // C5 E5 G5 C6
+    notes.forEach((f, i) => {
+      setTimeout(() => {
+        tone(f, 'square', 0.14, 0.14, 0.005, 0.14);
+        tone(f * 1.5, 'sine', 0.06, 0.10, 0.005, 0.10);
+      }, i * 55);
     });
   }
 
-  // Music box melody — sparse, haunting
-  function startMusicBox() {
-    const delay = ctx.createDelay(1.0);
-    delay.delayTime.setValueAtTime(0.3, ctx.currentTime);
-    const delayGain = ctx.createGain();
-    delayGain.gain.setValueAtTime(0.25, ctx.currentTime);
-    const reverb = createReverb(3.5);
-
-    delay.connect(delayGain);
-    delayGain.connect(delay);
-    delay.connect(reverb);
-    reverb.connect(masterGain);
-
-    let noteIndex = 0;
-    const melody = [0, 2, 4, 7, 4, 2, 0, 4, 7, 5, 4, 2, 0, 2, 7, 4];
-
-    function scheduleNote(time) {
-      const freq = PENTATONIC[melody[noteIndex % melody.length]];
-      noteIndex++;
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(freq, time);
-
-      gain.gain.setValueAtTime(0, time);
-      gain.gain.linearRampToValueAtTime(0.15, time + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.6);
-
-      osc.connect(gain);
-      gain.connect(delay);
-
-      osc.start(time);
-      osc.stop(time + 0.65);
-
-      // Random gaps — feels more dream-like
-      const gap = 0.6 + Math.random() * 1.4;
-      setTimeout(() => scheduleNote(ctx.currentTime), gap * 1000);
-    }
-
-    scheduleNote(ctx.currentTime + 1.5);
+  function colorChange() {
+    // Shimmering cascade — magical
+    const freqs = [880, 1100, 1320, 1760, 2200];
+    freqs.forEach((f, i) => {
+      setTimeout(() => {
+        tone(f, 'sine', 0.10, 0.20, 0.01, 0.20, (Math.random() - 0.5) * 15);
+        tone(f * 0.5, 'triangle', 0.06, 0.18, 0.01, 0.18);
+      }, i * 40);
+    });
+    setTimeout(() => sweep(400, 1600, 'sine', 0.08, 0.25), 50);
   }
 
-  // Playground texture — distant merry-go-round-like high notes
-  function startPlayground() {
-    const reverb = createReverb(5);
-
-    function playChime() {
-      const freqs = [1046.5, 1318.5, 1567.98, 2093.0]; // high C E G C
-      const freq = freqs[Math.floor(Math.random() * freqs.length)];
-
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      // Slightly detune — out-of-tune playground bell
-      osc.detune.setValueAtTime((Math.random() - 0.5) * 25, ctx.currentTime);
-
-      gain.gain.setValueAtTime(0, ctx.currentTime);
-      gain.gain.linearRampToValueAtTime(0.04, ctx.currentTime + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 2.5);
-
-      osc.connect(gain);
-      gain.connect(reverb);
-      reverb.connect(masterGain);
-
-      osc.start();
-      osc.stop(ctx.currentTime + 2.6);
-
-      const nextIn = 2000 + Math.random() * 5000;
-      setTimeout(playChime, nextIn);
-    }
-
-    setTimeout(playChime, 3000);
+  function death() {
+    // Descending wah — comical deflation
+    sweep(440, 80, 'sawtooth', 0.18, 0.40);
+    setTimeout(() => sweep(220, 55, 'square', 0.12, 0.35), 100);
+    noise(0.06, 0.25, 200);
   }
 
-  // Occasional glitch noise — VHS artifact sound
-  function startGlitch() {
-    function makeGlitch() {
-      const bufLen = ctx.sampleRate * 0.08;
-      const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
-      const data = buf.getChannelData(0);
-      for (let i = 0; i < bufLen; i++) {
-        data[i] = (Math.random() * 2 - 1) * 0.3;
-      }
-
-      const source = ctx.createBufferSource();
-      source.buffer = buf;
-
-      const filter = ctx.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(800 + Math.random() * 2000, ctx.currentTime);
-      filter.Q.setValueAtTime(8, ctx.currentTime);
-
-      const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.05, ctx.currentTime);
-
-      source.connect(filter);
-      filter.connect(gain);
-      gain.connect(masterGain);
-      source.start();
-
-      const nextIn = 8000 + Math.random() * 20000;
-      setTimeout(makeGlitch, nextIn);
-    }
-
-    setTimeout(makeGlitch, 6000);
-  }
-
-  // Simple reverb using convolver + noise impulse
-  function createReverb(duration) {
-    const conv = ctx.createConvolver();
-    const len = ctx.sampleRate * duration;
-    const buf = ctx.createBuffer(2, len, ctx.sampleRate);
-
-    for (let ch = 0; ch < 2; ch++) {
-      const data = buf.getChannelData(ch);
-      for (let i = 0; i < len; i++) {
-        data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.5);
-      }
-    }
-    conv.buffer = buf;
-    return conv;
-  }
-
-  function fadeOut() {
-    if (!masterGain) return;
-    masterGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 2);
-  }
-
-  function setVolume(v) {
-    if (!masterGain) return;
-    masterGain.gain.setValueAtTime(v * 0.18, ctx.currentTime);
-  }
-
-  return { init, fadeOut, setVolume };
+  return { jump, doubleJump, land, spring, dash, stomp, powerup, colorChange, death };
 })();

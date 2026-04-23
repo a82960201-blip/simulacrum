@@ -1,148 +1,174 @@
-// world.js — Map layout, zone definitions, entity, sprites
+// ============================================================
+//  WORLD.JS — Infinite procedural world generator
+// ============================================================
 
-// Zone types
-const ZONE = {
-  BACKROOMS: 'backrooms',
-  OFFICE: 'office',
-  DREAM: 'dream',
-  TADC: 'tadc',
-  VOID: 'void',
-};
+const WORLD = (() => {
+  const VOID_FLOOR  = 1500;
+  const WORLD_LEFT  = 0;
+  const WORLD_TOP   = -2000; // Raised for chaos
+  const CHUNK_W     = 1600;
 
-// Cell types
-const CELL = {
-  EMPTY: 0,
-  WALL: 1,
-  EXIT: 2,   // exit door (special wall)
-};
+  const MIN_X_GAP        = 100;   // Increased to reduce platform clumping
+  const MAX_X_GAP        = 200;   // Increased for better spacing
+  const MIN_Y_SEP        = 10;
+  const MAX_Y_SEP        = 120;
+  const BRIDGE_GAP_LIMIT = 250;   // Only insert a bridge if gap is large enough (no overlaps)
+  const BRIDGE_WIDTH     = 160;
 
-// Map is 64x64 tiles
-// We define regions / zones with their own texture theme
-// 0 = open, 1 = wall, 2 = exit door
+  let platforms   = [];
+  let springs     = [];
+  let orbs        = [];
+  let bgFragments = [];
+  let generatedUpTo    = 0;
+  let chunkIndex       = 0;
+  let lastPlatRightEdge = 1000;
 
-// prettier-ignore
-const RAW_MAP = [
-// 0         1         2         3         4         5         6   (tens)
-// 0123456789012345678901234567890123456789012345678901234567890123
-  "1111111111111111111111111111111111111111111111111111111111111111", // 0
-  "1000000000000100000000000001000000000000000000000000000000000001", // 1
-  "1000000000000100000000000001000000000000000000000000000000000001", // 2
-  "1000000000000000000000000001000000000000000000000000000000000001", // 3
-  "1000000000000100000000000001000011111111111110000000000000000001", // 4
-  "1000000000000100000000000001000010000000000010000000000000000001", // 5
-  "1000000000000100000000000001000010000000000010000000000000000001", // 6
-  "1111111111101111111100000001000010000000000010000000000000000001", // 7
-  "1000000000000000000100000001000010000000000010000000000000000001", // 8
-  "1000000000000000000100000001000010000000000010000000000000000001", // 9
-  "1000000000000000000100000001000011100000001110000000000000000001", // 10
-  "1000000000000000000100000001000000000000000000000000000000000001", // 11
-  "1000000000000000000111111111111111111100000000000000000000000001", // 12
-  "1000000000000000000000000000000000001000000000000000000000000001", // 13
-  "1111110000000000000000000000000000001000000000000000000000000001", // 14
-  "1000010000000000000000000000000000001000000000000000000000000001", // 15
-  "1000010000000000000000000000000000001000001111111111110000000001", // 16
-  "1000010000000000000000000000000000001000001000000000010000000001", // 17
-  "1000010000111111111111100000000000001000001000000000010000000001", // 18
-  "1000010000100000000000100000000000001000001000000000010000000001", // 19
-  "1000000000100000000000100000000000001000001000000000010000000001", // 20
-  "1000000000100000000000100000000000001000001000000000010000000001", // 21
-  "1111110000100000000000100000000000001000001000000000010000000001", // 22
-  "1000010000100000000000100000000000001000001000000000010000000001", // 23
-  "1000010000100000000000100000000000001000001000000000010000000001", // 24
-  "1000010000111111111111100000000000000000001000000000010000000001", // 25
-  "1000010000000000000000000000000000000000001000000000010000000001", // 26
-  "1000010000000000000000000000000000000000001000000000010000000001", // 27
-  "1111110000000000000000000000000000000000001111111111110000000001", // 28
-  "1000000000000000000000000000000000000000000000000000000000000001", // 29
-  "1000000000000000000000000000000000000000000000000000000000000001", // 30
-  "1000000000000000001111111111111111110000000000000000000000000001", // 31
-  "1000000000000000001000000000000000010000000000000000000000000001", // 32
-  "1000000000000000001000000000000000010000000000000000000000000001", // 33
-  "1000000000000000001000000000000000010000000000000000000000000001", // 34
-  "1000000000000000001000000000000000010000000000000000000111111111", // 35
-  "1000000000000000001000000000000000010000000000000000000100000001", // 36
-  "1000000000000000001000000000000000010000000000000000000100000001", // 37
-  "1111111111111111110000000000000000010000000000000000000100000001", // 38
-  "1000000000000000000000000000000000010000000000000000000100000001", // 39
-  "1000000000000000000000000000000000010000000000000000000100000001", // 40
-  "1000000000000000000000000000000000010000000000000000000100000001", // 41
-  "1000000000000000000000000000000000011111111111110000000100000001", // 42
-  "1000000000000000000000000000000000000000000000010000000100000001", // 43
-  "1000000000000000000000000000000000000000000000010000000100000001", // 44
-  "1000000000000000000000000000000000000000000000010000000111111111", // 45
-  "1000000000000000000000000000000000000000000000010000000000000001", // 46
-  "1000000000000000000000000000000000000000000000010000000000000001", // 47
-  "1000000000000000000000000000000000000000000000011111100000000001", // 48
-  "1000000000000000000000000000000000000000000000000000100000000001", // 49
-  "1000000000000000000000000000000000000000000000000000100000000001", // 50
-  "1111111111111000000000000001111111111111111111111111100000000001", // 51
-  "1000000000001000000000000001000000000000000000000000000000000001", // 52
-  "1000000000001000000000000001000000000000000000000000000000000001", // 53
-  "1000000000001000000000000001000000000000000000000000000000000001", // 54
-  "1000000000001000000000000001000000000000000000000000000000000001", // 55
-  "1000000000001000000000000001000000000000000000000000000000000001", // 56
-  "1000000000001000000000000000000000000000000000000000000000000001", // 57
-  "1000000000001000000000000000000000000000000000000000000000000001", // 58
-  "1000000000001000000000000000000000000000000000000000000000000001", // 59
-  "1000000000001111111111111111111111111111111111111111111111111111", // 60  -- exit row
-  "1000000000000000000000000000000000000000000000000000000000000001", // 61
-  "1000000000000000000000000000000000000000000000000000000000000001", // 62
-  "1111111111111111111111111111111111111111111111111111111111211111", // 63  -- exit at 62,63
-];
+  // Track map altitude for chaos
+  let targetAltitude = 500;
 
-// Convert string map to 2D array
-const MAP_SIZE = 64;
-const worldMap = [];
-for (let y = 0; y < MAP_SIZE; y++) {
-  worldMap[y] = [];
-  for (let x = 0; x < MAP_SIZE; x++) {
-    const ch = RAW_MAP[y] ? RAW_MAP[y][x] : '1';
-    if (ch === '2') worldMap[y][x] = CELL.EXIT;
-    else if (ch === '1') worldMap[y][x] = CELL.WALL;
-    else worldMap[y][x] = CELL.EMPTY;
+  function makeFragment(x, y) {
+    return { x, y, w: Math.random()*80+8, h: Math.random()*3+1, alpha: Math.random()*0.10+0.02 };
   }
-}
-
-// Zone map — which aesthetic each tile region uses
-// Determined by tile coordinate ranges
-function getZone(tx, ty) {
-  if (tx >= 0 && tx <= 20 && ty >= 0 && ty <= 30)  return ZONE.BACKROOMS;
-  if (tx >= 0 && tx <= 20 && ty >= 31 && ty <= 63) return ZONE.OFFICE;
-  if (tx >= 21 && tx <= 45 && ty >= 0 && ty <= 35) return ZONE.VOID;
-  if (tx >= 21 && tx <= 45 && ty >= 36 && ty <= 63) return ZONE.DREAM;
-  if (tx >= 46 && tx <= 63 && ty >= 0 && ty <= 30)  return ZONE.TADC;
-  if (tx >= 46 && tx <= 63 && ty >= 31 && ty <= 63) return ZONE.BACKROOMS;
-  return ZONE.VOID;
-}
-
-function getZoneTextures(zone) {
-  switch (zone) {
-    case ZONE.BACKROOMS: return { wall: TextureLib.backroomsWall, floor: TextureLib.backroomsFloor, ceiling: TextureLib.backroomsCeiling, fogColor: [200, 185, 100], fogDist: 10 };
-    case ZONE.OFFICE:    return { wall: TextureLib.officeWall,    floor: TextureLib.officeFloor,    ceiling: TextureLib.officeCeiling,    fogColor: [150, 160, 145], fogDist: 12 };
-    case ZONE.DREAM:     return { wall: TextureLib.dreamWall,     floor: TextureLib.dreamFloor,     ceiling: TextureLib.dreamCeiling,     fogColor: [230, 190, 220], fogDist: 14 };
-    case ZONE.TADC:      return { wall: TextureLib.tadcWall,      floor: TextureLib.tadcFloor,      ceiling: TextureLib.tadcCeiling,      fogColor: [80, 40, 60],   fogDist: 8  };
-    case ZONE.VOID:
-    default:             return { wall: TextureLib.voidWall,      floor: TextureLib.voidFloor,      ceiling: TextureLib.voidCeiling,      fogColor: [10, 15, 20],   fogDist: 6  };
+  for (let i = 0; i < 60; i++) {
+    bgFragments.push(makeFragment(Math.random()*4000, Math.random()*2200-600));
   }
-}
 
-function getZoneName(zone) {
-  switch (zone) {
-    case ZONE.BACKROOMS: return 'LEVEL 0 — THE LOBBY';
-    case ZONE.OFFICE:    return 'LEVEL 1 — HABITABLE ZONE';
-    case ZONE.DREAM:     return 'THE DREAM CORRIDOR';
-    case ZONE.TADC:      return 'THE DIGITAL CIRCUS';
-    case ZONE.VOID:      return 'THE VOID BETWEEN';
-    default:             return '';
+  function rnd(min, max) { return min + Math.random()*(max-min); }
+
+  function makePlat(x, y, w) {
+    return {
+      x, y, w,
+      h: 22,
+      angle: 0,
+      rise: 0,
+      spawnSlug: false,
+      _slugSpawned: false,
+    };
   }
-}
 
-// Sprites in the world: {x, y, texture, type}
-// type: 'entity' | 'exit_marker'
-const SPRITES = [
-  // The black figure entity — deep in the void zone
-  { x: 32.5, y: 8.5, texture: 'entity', type: 'entity', hint: "the exit hums at the edge of everything. south. always south. find where the walls stop arguing with each other." },
-];
+  function generateChunk(startX, ci) {
+    const newPlats   = [];
+    const newSprings = [];
+    const newOrbs    = [];
 
-// Player start
-const PLAYER_START = { x: 2.5, y: 2.5, angle: 0 };
+    // CHAOS: 40% chance to jump to a completely new altitude
+    if (Math.random() < 0.4) {
+        targetAltitude = rnd(200, 700);   // Clamped to sane range, avoids extreme negative Y
+    }
+
+    let x = lastPlatRightEdge + rnd(MIN_X_GAP, MAX_X_GAP);
+    let y = targetAltitude + Math.sin(ci * 0.8) * 100;
+    const numPlats = 5 + Math.floor(Math.random() * 5);
+
+    for (let i = 0; i < numPlats; i++) {
+      const wRoll = Math.random();
+      let w;
+      if (wRoll < 0.10)      w = rnd(500, 750);
+      else if (wRoll < 0.30) w = rnd(160, 240);
+      else                    w = rnd(280, 460);
+
+      // Vertical shift
+      let sign = Math.random() < 0.5 ? -1 : 1;
+      const dy = sign * rnd(MIN_Y_SEP, MAX_Y_SEP);
+      y = Math.max(-200, Math.min(1000, y + dy)); // Clamp to avoid unreachable platforms
+
+      const plat = makePlat(x, y, w);
+      newPlats.push(plat);
+      lastPlatRightEdge = x + w;
+
+      if (newPlats.length > 1) {
+        const prev = newPlats[newPlats.length - 2];
+        const rise = prev.y - y;
+        if (rise > 100 || Math.random() < 0.15) {
+          const sx = prev.x + prev.w * rnd(0.40, 0.80);
+          newSprings.push({ x: sx, y: prev.y });
+        }
+      }
+
+      if (w > 200 && Math.random() < 0.40) plat.spawnSlug = true;
+
+      if (Math.random() < 0.08) {
+        const isMulti  = Math.random() < 0.08;
+        const themeIdx = Math.floor(Math.random() * 10);
+        newOrbs.push({
+          x: x + w * rnd(0.2, 0.8), y: y - rnd(70, 120),
+          r: 16, themeIdx, isMulti,
+          collected: false, pulse: Math.random() * Math.PI * 2,
+        });
+      }
+
+      if (Math.random() < 0.12) {
+        newOrbs.push({
+          x: x + w * rnd(0.15, 0.85), y: y - rnd(60, 100),
+          r: 16, powerUp: Math.random() < 0.5 ? 'dash' : 'doublejump',
+          collected: false, pulse: Math.random() * Math.PI * 2,
+        });
+      }
+      x += w + rnd(MIN_X_GAP, MAX_X_GAP);
+    }
+
+    // FIXED: Bridge logic – only insert if gap is wide enough to avoid overlap
+    for (let i = newPlats.length - 1; i > 0; i--) {
+      const a = newPlats[i - 1];
+      const b = newPlats[i];
+      const gapBetween = b.x - (a.x + a.w);
+      if (gapBetween > BRIDGE_GAP_LIMIT) {
+        const bx = a.x + a.w + (gapBetween - BRIDGE_WIDTH) / 2;
+        const by = (a.y + b.y) / 2;
+        newPlats.splice(i, 0, makePlat(bx, by, BRIDGE_WIDTH));
+      }
+    }
+
+    return { newPlats, newSprings, newOrbs };
+  }
+
+  function ensureGenerated(upToX) {
+    while (generatedUpTo < upToX + CHUNK_W * 5) {
+      const { newPlats, newSprings, newOrbs } = generateChunk(generatedUpTo, chunkIndex++);
+      platforms.push(...newPlats);
+      springs.push(...newSprings);
+      orbs.push(...newOrbs);
+      generatedUpTo += CHUNK_W;
+    }
+  }
+
+  function cull(playerX) {
+    const cullX = playerX - 3000;
+    for (let i = platforms.length-1; i>=0; i--) {
+      if (platforms[i].x + platforms[i].w < cullX) platforms.splice(i,1);
+    }
+    for (let i = springs.length-1; i>=0; i--) {
+      if (springs[i].x < cullX) springs.splice(i,1);
+    }
+    for (let i = orbs.length-1; i>=0; i--) {
+      if (orbs[i].x < cullX) orbs.splice(i,1);
+    }
+  }
+
+  function resetWorld() {
+    platforms.length   = 0;
+    springs.length     = 0;
+    orbs.length        = 0;
+    bgFragments.length = 0;
+    generatedUpTo      = 0;
+    chunkIndex         = 0;
+    lastPlatRightEdge  = 1000;
+    for (let i = 0; i < 60; i++) {
+      bgFragments.push(makeFragment(Math.random()*4000, Math.random()*2200-600));
+    }
+    platforms.push(makePlat(0, 520, 1500)); 
+    ensureGenerated(0);
+  }
+
+  resetWorld();
+
+  return {
+    platforms, springs, orbs, bgFragments,
+    WORLD_LEFT, WORLD_TOP, VOID_FLOOR, CHUNK_W,
+    ensureGenerated, cull, 
+    updateSafePos: (x, y) => {}, // Disabled as requested
+    getSafePos: () => ({ x: 500, y: 460 }), // Always respawn at start
+    resetWorld,
+    get WORLD_RIGHT() { return generatedUpTo + CHUNK_W; },
+  };
+})();
