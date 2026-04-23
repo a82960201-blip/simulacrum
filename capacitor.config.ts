@@ -3,7 +3,7 @@ import { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
   appId: 'com.simulacrum.game',
   appName: 'SIMULACRUM',
-  webDir: '.',           // our HTML/JS/CSS lives at root
+  webDir: 'www',        // ← changed from '.' to 'www'
   server: {
     androidScheme: 'https',
     cleartext: false,

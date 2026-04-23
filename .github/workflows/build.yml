@@ -25,12 +25,17 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # No need to install TypeScript or manually build www folder.
-      # Capacitor will read your web files directly from the project root.
+      # NEW STEP: Create www folder and copy all root web files
+      - name: Put web files into www/
+        run: |
+          mkdir -p www
+          cp *.html www/ 2>/dev/null || true
+          cp *.css  www/ 2>/dev/null || true
+          cp *.js   www/ 2>/dev/null || true
 
-      - name: Add Android platform (if not already added)
+      - name: Add Android platform
         run: npx cap add android
-        continue-on-error: true
+        continue-on-error: true   # OK if already added
 
       - name: Sync Capacitor
         run: npx cap sync android
