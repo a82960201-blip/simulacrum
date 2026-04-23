@@ -1,357 +1,151 @@
-// audio.js — Five zones. Five sounds. All wrong.
+// ============================================================
+//  AUDIO.JS — Upbeat procedural sound effects via Web Audio
+// ============================================================
 
-const AudioEngine = (() => {
+const SFX = (() => {
   let ctx = null;
-  let masterGain = null;
-  let zoneGain = null;
-  let started = false;
-  let currentZone = null;
-  let zoneNodes = {};
 
-  // Pentatonic — dreamlike, never resolves
-  const PENTATONIC = [261.63,293.66,329.63,392.0,440.0,523.25,587.33,659.26];
-  // Tritone intervals for the circus — the devil's interval
-  const CIRCUS_SCALE = [261.63,277.18,369.99,415.30,554.37,622.25];
-
-  function init() {
-    if (started) return;
-    ctx = new (window.AudioContext||window.webkitAudioContext)();
-    masterGain = ctx.createGain();
-    masterGain.gain.setValueAtTime(0.18, ctx.currentTime);
-    masterGain.connect(ctx.destination);
-
-    zoneGain = ctx.createGain();
-    zoneGain.gain.setValueAtTime(1.0, ctx.currentTime);
-    zoneGain.connect(masterGain);
-
-    started = true;
-
-    // Universal layers
-    startGlobalDrone();
-    startGlobalGlitch();
-    // Zone layers start silent, activated by setZone
-    buildZoneLayers();
+  function getCtx() {
+    if (!ctx) {
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    // Resume if suspended (autoplay policy)
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
   }
 
-  // ── GLOBAL DRONE — heard everywhere ────────────────────────
-  // The world hums because it has to. Because it can't stop.
-  function startGlobalDrone() {
-    [55, 82.41, 110, 164.81].forEach((freq, i) => {
-      const osc   = ctx.createOscillator();
-      const gain  = ctx.createGain();
-      const filt  = ctx.createBiquadFilter();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      // Slow wobble
-      osc.frequency.setTargetAtTime(freq*1.003, ctx.currentTime+4, 6);
-      osc.frequency.setTargetAtTime(freq*0.998, ctx.currentTime+12, 6);
-      filt.type='lowpass';
-      filt.frequency.setValueAtTime(280+i*60, ctx.currentTime);
-      gain.gain.setValueAtTime(0.055-i*0.012, ctx.currentTime);
-      osc.connect(filt); filt.connect(gain); gain.connect(masterGain);
-      osc.start();
-    });
+  // Unlock on first interaction
+  document.addEventListener('touchstart', () => getCtx(), { once: true });
+  document.addEventListener('mousedown',  () => getCtx(), { once: true });
+  document.addEventListener('keydown',    () => getCtx(), { once: true });
+
+  // ── Utility: play a tone burst ──
+  function tone(freq, type, gainVal, duration, attack, decay, detune = 0) {
+    try {
+      const ac = getCtx();
+      const osc  = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      osc.detune.value = detune;
+      gain.gain.setValueAtTime(0, ac.currentTime);
+      gain.gain.linearRampToValueAtTime(gainVal, ac.currentTime + attack);
+      gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.start(ac.currentTime);
+      osc.stop(ac.currentTime + duration + 0.05);
+    } catch(e) {}
   }
 
-  // ── GLOBAL GLITCH — VHS artifacts ──────────────────────────
-  function startGlobalGlitch() {
-    function makeGlitch() {
-      const len = ctx.sampleRate * 0.06;
-      const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  function sweep(freqStart, freqEnd, type, gainVal, duration) {
+    try {
+      const ac = getCtx();
+      const osc  = ac.createOscillator();
+      const gain = ac.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freqStart, ac.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(freqEnd, ac.currentTime + duration);
+      gain.gain.setValueAtTime(gainVal, ac.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(ac.destination);
+      osc.start(ac.currentTime);
+      osc.stop(ac.currentTime + duration + 0.05);
+    } catch(e) {}
+  }
+
+  function noise(gainVal, duration, filterFreq = 800) {
+    try {
+      const ac = getCtx();
+      const buf = ac.createBuffer(1, ac.sampleRate * duration, ac.sampleRate);
       const data = buf.getChannelData(0);
-      for(let i=0;i<len;i++) data[i]=(Math.random()*2-1)*0.25;
-
-      const src  = ctx.createBufferSource();
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      const src    = ac.createBufferSource();
+      const filter = ac.createBiquadFilter();
+      const gain   = ac.createGain();
       src.buffer = buf;
-      const filt = ctx.createBiquadFilter();
-      filt.type='bandpass';
-      filt.frequency.setValueAtTime(600+Math.random()*3000, ctx.currentTime);
-      filt.Q.setValueAtTime(10, ctx.currentTime);
-      const gain = ctx.createGain();
-      gain.gain.setValueAtTime(0.04, ctx.currentTime);
-      src.connect(filt); filt.connect(gain); gain.connect(masterGain);
+      filter.type = 'bandpass';
+      filter.frequency.value = filterFreq;
+      gain.gain.setValueAtTime(gainVal, ac.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ac.currentTime + duration);
+      src.connect(filter); filter.connect(gain); gain.connect(ac.destination);
       src.start();
-
-      setTimeout(makeGlitch, 10000+Math.random()*25000);
-    }
-    setTimeout(makeGlitch, 5000);
+    } catch(e) {}
   }
 
-  // ── ZONE LAYERS ─────────────────────────────────────────────
-  function buildZoneLayers() {
-    // Each zone's ambient layer starts silent.
-    // We cross-fade between them as player moves.
-    startBackroomsLayer();
-    startSchoolLayer();
-    startPoolLayer();
-    startDreamLayer();
-    startCircusLayer();
+  // ── Sound definitions ──
+
+  function jump() {
+    // Bright upward chirp
+    sweep(260, 520, 'square', 0.18, 0.12);
+    sweep(320, 640, 'sine',   0.10, 0.10);
   }
 
-  // BACKROOMS — fluorescent hum + distant footsteps
-  function startBackroomsLayer() {
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0, ctx.currentTime);
-    g.connect(zoneGain);
-    zoneNodes.backrooms = g;
-
-    // Mains hum — 60Hz harmonic series
-    [60,120,180,240].forEach((freq,i)=>{
-      const osc=ctx.createOscillator();
-      const og=ctx.createGain();
-      osc.type='sawtooth';
-      osc.frequency.setValueAtTime(freq,ctx.currentTime);
-      og.gain.setValueAtTime(0.012/(i+1),ctx.currentTime);
-      const filt=ctx.createBiquadFilter();
-      filt.type='lowpass'; filt.frequency.setValueAtTime(400,ctx.currentTime);
-      osc.connect(filt); filt.connect(og); og.connect(g);
-      osc.start();
-    });
-
-    // Distant dripping
-    function drip() {
-      const osc=ctx.createOscillator();
-      const og=ctx.createGain();
-      osc.type='sine';
-      osc.frequency.setValueAtTime(800+Math.random()*400,ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(200,ctx.currentTime+0.15);
-      og.gain.setValueAtTime(0,ctx.currentTime);
-      og.gain.linearRampToValueAtTime(0.06,ctx.currentTime+0.01);
-      og.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.2);
-      const rev=createReverb(4);
-      osc.connect(og); og.connect(rev); rev.connect(g);
-      osc.start(); osc.stop(ctx.currentTime+0.25);
-      setTimeout(drip, 3000+Math.random()*8000);
-    }
-    setTimeout(drip, 2000);
+  function doubleJump() {
+    // Two-tone sparkle
+    sweep(400, 800, 'square', 0.16, 0.10);
+    setTimeout(() => sweep(500, 1000, 'sine', 0.12, 0.09), 50);
+    setTimeout(() => tone(1200, 'sine', 0.06, 0.12, 0.01, 0.12), 100);
   }
 
-  // SCHOOL — silence so total it has texture
-  // Distant bell. Wind through a cracked window. Nothing.
-  function startSchoolLayer() {
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0, ctx.currentTime);
-    g.connect(zoneGain);
-    zoneNodes.school = g;
-
-    // Music box — sparse, slightly off-tune
-    const rev = createReverb(6);
-    rev.connect(g);
-    const melody = [0,4,2,7,4,2,0,4,7,4,0,2];
-    let ni = 0;
-    function note() {
-      const freq = PENTATONIC[melody[ni%melody.length]%PENTATONIC.length];
-      ni++;
-      const osc=ctx.createOscillator();
-      const og=ctx.createGain();
-      osc.type='triangle';
-      osc.frequency.setValueAtTime(freq,ctx.currentTime);
-      osc.detune.setValueAtTime((Math.random()-0.5)*15,ctx.currentTime); // ever so slightly wrong
-      og.gain.setValueAtTime(0,ctx.currentTime);
-      og.gain.linearRampToValueAtTime(0.1,ctx.currentTime+0.015);
-      og.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.8);
-      osc.connect(og); og.connect(rev);
-      osc.start(); osc.stop(ctx.currentTime+0.85);
-      setTimeout(note, 800+Math.random()*2200);
-    }
-    setTimeout(note, 1500);
-
-    // Distant school bell — every 40-80 seconds
-    function bell() {
-      const osc=ctx.createOscillator();
-      const og=ctx.createGain();
-      osc.type='sine';
-      osc.frequency.setValueAtTime(880,ctx.currentTime);
-      og.gain.setValueAtTime(0,ctx.currentTime);
-      og.gain.linearRampToValueAtTime(0.12,ctx.currentTime+0.02);
-      og.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+3.0);
-      const rev2=createReverb(5);
-      osc.connect(og); og.connect(rev2); rev2.connect(g);
-      osc.start(); osc.stop(ctx.currentTime+3.2);
-      setTimeout(bell, 40000+Math.random()*40000);
-    }
-    setTimeout(bell, 8000);
+  function land(intensity) {
+    const vel = Math.min(intensity, 20);
+    const freq = 80 + vel * 4;
+    noise(0.12 + vel * 0.006, 0.12, freq * 2);
+    sweep(freq * 2, freq * 0.5, 'sine', 0.14, 0.10);
   }
 
-  // POOL — deep resonant echo. Water displacement. Distant splash.
-  function startPoolLayer() {
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0, ctx.currentTime);
-    g.connect(zoneGain);
-    zoneNodes.pool = g;
-
-    // Low resonant hum — the water's frequency
-    const osc=ctx.createOscillator();
-    const og=ctx.createGain();
-    osc.type='sine';
-    osc.frequency.setValueAtTime(40,ctx.currentTime);
-    og.gain.setValueAtTime(0.08,ctx.currentTime);
-    const filt=ctx.createBiquadFilter();
-    filt.type='lowpass'; filt.frequency.setValueAtTime(200,ctx.currentTime);
-    osc.connect(filt); filt.connect(og); og.connect(g);
-    osc.start();
-
-    // Distant splash
-    function splash() {
-      const len=ctx.sampleRate*0.4;
-      const buf=ctx.createBuffer(1,len,ctx.sampleRate);
-      const data=buf.getChannelData(0);
-      for(let i=0;i<len;i++) data[i]=(Math.random()*2-1)*Math.pow(1-i/len,1.5)*0.5;
-      const src=ctx.createBufferSource();
-      src.buffer=buf;
-      const filt2=ctx.createBiquadFilter();
-      filt2.type='lowpass'; filt2.frequency.setValueAtTime(1200,ctx.currentTime);
-      const sg=ctx.createGain();
-      sg.gain.setValueAtTime(0.15,ctx.currentTime);
-      const rev=createReverb(5);
-      src.connect(filt2); filt2.connect(sg); sg.connect(rev); rev.connect(g);
-      src.start();
-      setTimeout(splash, 8000+Math.random()*20000);
-    }
-    setTimeout(splash, 4000);
+  function spring() {
+    // Bouncy boing — fast sweep up with wobble
+    sweep(180, 900, 'sine', 0.22, 0.18);
+    setTimeout(() => sweep(900, 1200, 'sine', 0.12, 0.10), 100);
+    setTimeout(() => sweep(1200, 800, 'sine', 0.06, 0.12), 180);
   }
 
-  // DREAM — music box. Slow. The notes don't quite fit the scale.
-  // Childhood. A television in another room. VHS rewinding.
-  function startDreamLayer() {
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0, ctx.currentTime);
-    g.connect(zoneGain);
-    zoneNodes.dream = g;
-
-    const rev = createReverb(8);
-    rev.connect(g);
-
-    // High chimes — merry-go-round slowing down
-    function chime() {
-      const freqs=[1046.5,1174.66,1318.5,1567.98,2093.0];
-      const freq=freqs[Math.floor(Math.random()*freqs.length)];
-      const osc=ctx.createOscillator();
-      const og=ctx.createGain();
-      osc.type='sine';
-      osc.frequency.setValueAtTime(freq,ctx.currentTime);
-      osc.detune.setValueAtTime((Math.random()-0.5)*30,ctx.currentTime); // out of tune
-      og.gain.setValueAtTime(0,ctx.currentTime);
-      og.gain.linearRampToValueAtTime(0.05,ctx.currentTime+0.01);
-      og.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+3.5);
-      osc.connect(og); og.connect(rev);
-      osc.start(); osc.stop(ctx.currentTime+3.6);
-      setTimeout(chime, 1500+Math.random()*5000);
-    }
-    setTimeout(chime, 1000);
-
-    // Television static in the distance
-    function tvStatic() {
-      const len=ctx.sampleRate*0.1;
-      const buf=ctx.createBuffer(1,len,ctx.sampleRate);
-      const data=buf.getChannelData(0);
-      for(let i=0;i<len;i++) data[i]=(Math.random()*2-1)*0.2;
-      const src=ctx.createBufferSource();
-      src.buffer=buf;
-      const filt=ctx.createBiquadFilter();
-      filt.type='bandpass'; filt.frequency.setValueAtTime(3000,ctx.currentTime);
-      filt.Q.setValueAtTime(0.5,ctx.currentTime);
-      const sg=ctx.createGain();
-      sg.gain.setValueAtTime(0.04,ctx.currentTime);
-      src.connect(filt); filt.connect(sg); sg.connect(g);
-      src.start();
-      setTimeout(tvStatic, 15000+Math.random()*30000);
-    }
-    setTimeout(tvStatic, 8000);
+  function dash() {
+    // Whoosh + crackle
+    sweep(600, 1400, 'sawtooth', 0.12, 0.08);
+    noise(0.08, 0.08, 2000);
+    setTimeout(() => sweep(1400, 200, 'square', 0.08, 0.12), 60);
   }
 
-  // CIRCUS — the devil's interval. Calliope pipe organ, broken.
-  // The music keeps starting but never reaches the chorus.
-  function startCircusLayer() {
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0, ctx.currentTime);
-    g.connect(zoneGain);
-    zoneNodes.circus = g;
-
-    const dist = ctx.createWaveShaper();
-    const curve = new Float32Array(256);
-    for(let i=0;i<256;i++) curve[i]=Math.tanh((i-128)/30); // overdrive
-    dist.curve=curve;
-    dist.connect(g);
-
-    // Broken calliope — tritones
-    const melody=[0,4,1,5,2,3,0,4,5,1,3,2,0];
-    let ni=0;
-    function pipe() {
-      const freq=CIRCUS_SCALE[melody[ni%melody.length]%CIRCUS_SCALE.length];
-      ni++;
-      const osc=ctx.createOscillator();
-      const og=ctx.createGain();
-      osc.type='square';
-      osc.frequency.setValueAtTime(freq,ctx.currentTime);
-      // Random detune — the organ is decaying
-      osc.detune.setValueAtTime((Math.random()-0.5)*80,ctx.currentTime);
-      og.gain.setValueAtTime(0,ctx.currentTime);
-      og.gain.linearRampToValueAtTime(0.08,ctx.currentTime+0.04);
-      og.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+1.2);
-      const filt=ctx.createBiquadFilter();
-      filt.type='bandpass'; filt.frequency.setValueAtTime(800+Math.random()*400,ctx.currentTime);
-      filt.Q.setValueAtTime(2,ctx.currentTime);
-      osc.connect(filt); filt.connect(og); og.connect(dist);
-      osc.start(); osc.stop(ctx.currentTime+1.3);
-      // Sometimes it glitches and fires twice
-      if(Math.random()>0.7) {
-        setTimeout(()=>{ const osc2=ctx.createOscillator(); const og2=ctx.createGain();
-          osc2.type='square'; osc2.frequency.setValueAtTime(freq*1.5,ctx.currentTime);
-          og2.gain.setValueAtTime(0.04,ctx.currentTime); og2.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.3);
-          osc2.connect(og2); og2.connect(dist); osc2.start(); osc2.stop(ctx.currentTime+0.35);
-        }, 80);
-      }
-      setTimeout(pipe, 600+Math.random()*1000);
-    }
-    setTimeout(pipe, 500);
+  function stomp() {
+    // Satisfying squish pop
+    sweep(300, 80, 'square', 0.20, 0.10);
+    noise(0.10, 0.10, 400);
+    setTimeout(() => tone(600, 'sine', 0.10, 0.08, 0.005, 0.08), 40);
   }
 
-  // ── ZONE TRANSITIONS ────────────────────────────────────────
-  const ZONE_NODE_MAP = {
-    'backrooms': 'backrooms',
-    'school':    'school',
-    'pool':      'pool',
-    'dream':     'dream',
-    'circus':    'circus',
-  };
-
-  function setZone(zone) {
-    if (!started || zone === currentZone) return;
-    currentZone = zone;
-
-    const targetKey = ZONE_NODE_MAP[zone] || null;
-    const now = ctx.currentTime;
-
-    Object.entries(zoneNodes).forEach(([key, gainNode]) => {
-      const target = key===targetKey ? 1.0 : 0.0;
-      gainNode.gain.cancelScheduledValues(now);
-      gainNode.gain.setValueAtTime(gainNode.gain.value, now);
-      gainNode.gain.linearRampToValueAtTime(target, now+2.5);
+  function powerup() {
+    // Ascending arpeggio — upbeat and celebratory
+    const notes = [523, 659, 784, 1047]; // C5 E5 G5 C6
+    notes.forEach((f, i) => {
+      setTimeout(() => {
+        tone(f, 'square', 0.14, 0.14, 0.005, 0.14);
+        tone(f * 1.5, 'sine', 0.06, 0.10, 0.005, 0.10);
+      }, i * 55);
     });
   }
 
-  function createReverb(duration) {
-    const conv=ctx.createConvolver();
-    const len=ctx.sampleRate*duration;
-    const buf=ctx.createBuffer(2,len,ctx.sampleRate);
-    for(let ch=0;ch<2;ch++){
-      const data=buf.getChannelData(ch);
-      for(let i=0;i<len;i++) data[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.2);
-    }
-    conv.buffer=buf;
-    return conv;
+  function colorChange() {
+    // Shimmering cascade — magical
+    const freqs = [880, 1100, 1320, 1760, 2200];
+    freqs.forEach((f, i) => {
+      setTimeout(() => {
+        tone(f, 'sine', 0.10, 0.20, 0.01, 0.20, (Math.random() - 0.5) * 15);
+        tone(f * 0.5, 'triangle', 0.06, 0.18, 0.01, 0.18);
+      }, i * 40);
+    });
+    setTimeout(() => sweep(400, 1600, 'sine', 0.08, 0.25), 50);
   }
 
-  function fadeOut() {
-    if (!masterGain) return;
-    masterGain.gain.linearRampToValueAtTime(0, ctx.currentTime+2.5);
+  function death() {
+    // Descending wah — comical deflation
+    sweep(440, 80, 'sawtooth', 0.18, 0.40);
+    setTimeout(() => sweep(220, 55, 'square', 0.12, 0.35), 100);
+    noise(0.06, 0.25, 200);
   }
 
-  function setVolume(v) {
-    if (!masterGain) return;
-    masterGain.gain.setValueAtTime(v*0.18, ctx.currentTime);
-  }
-
-  return { init, fadeOut, setVolume, setZone };
+  return { jump, doubleJump, land, spring, dash, stomp, powerup, colorChange, death };
 })();
