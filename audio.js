@@ -147,5 +147,149 @@ const SFX = (() => {
     noise(0.06, 0.25, 200);
   }
 
-  return { jump, doubleJump, land, spring, dash, stomp, powerup, colorChange, death };
-})();
+  // ══════════════════════════════════════════════════════════
+  //  MUSIC — Chiptune-style procedural BGM
+  //  Classic platformer feel: bouncy bass + lead melody + hats
+  // ══════════════════════════════════════════════════════════
+
+  const MUSIC = (() => {
+    let playing  = false;
+    let stopFlag = false;
+    let masterGain = null;
+
+    // Note frequencies (Hz) — two octaves of chromatic scale helpers
+    const NOTE = {
+      C3:130.8, D3:146.8, E3:164.8, F3:174.6, G3:196.0, A3:220.0, B3:246.9,
+      C4:261.6, D4:293.7, E4:329.6, F4:349.2, G4:392.0, A4:440.0, B4:493.9,
+      C5:523.3, D5:587.3, E5:659.3, F5:698.5, G5:784.0, A5:880.0, B5:987.8,
+    };
+
+    // Melody in C major — classic upbeat platformer riff (16 steps, 8th notes)
+    const MELODY = [
+      NOTE.E5, NOTE.E5, NOTE.G5, NOTE.E5,  NOTE.C5, NOTE.D5, NOTE.E5, null,
+      NOTE.G5, NOTE.G5, NOTE.A5, NOTE.G5,  NOTE.E5, NOTE.D5, NOTE.C5, NOTE.E5,
+    ];
+    // Bass line — root / fifth pattern
+    const BASS = [
+      NOTE.C3, null, NOTE.G3, null,  NOTE.A3, null, NOTE.E3, null,
+      NOTE.F3, null, NOTE.C3, null,  NOTE.G3, null, NOTE.G3, null,
+    ];
+
+    function playNote(freq, type, gainNode, startT, dur, vol = 0.18) {
+      try {
+        const ac  = getCtx();
+        const osc = ac.createOscillator();
+        const g   = ac.createGain();
+        osc.type = type;
+        osc.frequency.value = freq;
+        g.gain.setValueAtTime(0, startT);
+        g.gain.linearRampToValueAtTime(vol, startT + 0.005);
+        g.gain.exponentialRampToValueAtTime(0.001, startT + dur * 0.85);
+        osc.connect(g);
+        g.connect(gainNode);
+        osc.start(startT);
+        osc.stop(startT + dur);
+      } catch(e) {}
+    }
+
+    function playHat(gainNode, startT, vol = 0.06) {
+      try {
+        const ac   = getCtx();
+        const buf  = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.04), ac.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1);
+        const src    = ac.createBufferSource();
+        const filter = ac.createBiquadFilter();
+        const g      = ac.createGain();
+        src.buffer = buf;
+        filter.type = 'highpass';
+        filter.frequency.value = 7000;
+        g.gain.setValueAtTime(vol, startT);
+        g.gain.exponentialRampToValueAtTime(0.001, startT + 0.04);
+        src.connect(filter); filter.connect(g); g.connect(gainNode);
+        src.start(startT);
+      } catch(e) {}
+    }
+
+    // Schedule one full 16-step loop, returns duration of loop in seconds
+    function scheduleLoop(startT) {
+      const ac      = getCtx();
+      const stepDur = 0.135;   // length of one 8th note (~111 BPM)
+      const loopDur = stepDur * 16;
+
+      // Ensure master gain node exists and is connected
+      if (!masterGain) {
+        masterGain = ac.createGain();
+        masterGain.gain.value = 0.5;
+        masterGain.connect(ac.destination);
+      }
+
+      for (let i = 0; i < 16; i++) {
+        const t = startT + i * stepDur;
+
+        // Melody — square wave lead
+        if (MELODY[i]) playNote(MELODY[i], 'square', masterGain, t, stepDur * 0.7, 0.14);
+
+        // Bass — triangle for warmth
+        if (BASS[i])   playNote(BASS[i],   'triangle', masterGain, t, stepDur * 1.1, 0.20);
+
+        // Hi-hat on every step, accent on beats 1 & 3 of each bar
+        const hatVol = (i % 4 === 0) ? 0.09 : 0.04;
+        playHat(masterGain, t, hatVol);
+
+        // Kick-like thump on beat 1 of each bar (steps 0, 8)
+        if (i % 8 === 0) {
+          try {
+            const ac2 = getCtx();
+            const osc = ac2.createOscillator();
+            const g   = ac2.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(120, t);
+            osc.frequency.exponentialRampToValueAtTime(40, t + 0.12);
+            g.gain.setValueAtTime(0.28, t);
+            g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+            osc.connect(g); g.connect(masterGain);
+            osc.start(t); osc.stop(t + 0.2);
+          } catch(e) {}
+        }
+      }
+      return loopDur;
+    }
+
+    function loopScheduler(nextStart) {
+      if (stopFlag) { playing = false; return; }
+      const ac = getCtx();
+      // Schedule 2 loops ahead to avoid gaps
+      const loopDur  = scheduleLoop(nextStart);
+      const scheduleAhead = nextStart - ac.currentTime;
+      // Re-schedule just before the next loop begins
+      const delay = Math.max(0, (scheduleAhead + loopDur - 0.3)) * 1000;
+      setTimeout(() => loopScheduler(nextStart + loopDur), delay);
+    }
+
+    function start() {
+      if (playing) return;
+      playing  = true;
+      stopFlag = false;
+      const ac = getCtx();
+      loopScheduler(ac.currentTime + 0.1);
+    }
+
+    function stop() {
+      stopFlag = true;
+      if (masterGain) {
+        try {
+          masterGain.gain.setTargetAtTime(0, getCtx().currentTime, 0.3);
+        } catch(e) {}
+        setTimeout(() => { masterGain = null; }, 600);
+      }
+    }
+
+    function setVolume(v) {
+      if (masterGain) masterGain.gain.setTargetAtTime(v, getCtx().currentTime, 0.1);
+    }
+
+    return { start, stop, setVolume };
+  })();
+
+  return { jump, doubleJump, land, spring, dash, stomp, powerup, colorChange, death, music: MUSIC };

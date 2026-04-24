@@ -5,18 +5,39 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx    = canvas.getContext('2d');
 
-function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+// ── Zoom ──
+// Mobile gets a wider view (less zoom-in); desktop stays 1:1
+function isMobile() {
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || window.innerWidth < 768;
+}
+let ZOOM = 1;
+function updateZoom() {
+  ZOOM = isMobile() ? 0.60 : 1.0;
+}
+updateZoom();
+
+function resize() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+  updateZoom();
+}
 resize();
 window.addEventListener('resize', resize);
+
+// Helpers: logical (game) dimensions after zoom
+function logicalW() { return canvas.width  / ZOOM; }
+function logicalH() { return canvas.height / ZOOM; }
 
 // ── Camera ──
 const cam = {
   x: 0, y: 0,
-  snapTo(p, W, H) {
+  snapTo(p) {
+    const W = logicalW(), H = logicalH();
     this.x = p.x + p.baseW/2 - W/2;
     this.y = p.y + p.baseH/2 - H/2.4;
   },
-  update(p, W, H) {
+  update(p) {
+    const W = logicalW(), H = logicalH();
     const tx = p.x + p.baseW/2 - W/2;
     const ty = p.y + p.baseH/2 - H/2.4;
     this.x += (tx - this.x) * 0.10;
@@ -60,7 +81,7 @@ function onWorldReset() {
   player.vy = 0;
   // (Other player state like dead, momentum, etc. should be handled in Player.respawn)
 
-  cam.snapTo(player, canvas.width, canvas.height);
+  cam.snapTo(player);
 }
 
 // ── Orb collection ──
@@ -111,12 +132,13 @@ let bestX = 0;
 // ── Background ──
 function drawBackground() {
   const c = Theme.get();
+  const W = logicalW(), H = logicalH();
   ctx.fillStyle = '#000';
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillRect(0, 0, W, H);
 
   for (const f of WORLD.bgFragments) {
     const sx = f.x - cam.x, sy = f.y - cam.y;
-    if (sx < -200 || sx > canvas.width+200 || sy < -100 || sy > canvas.height+100) continue;
+    if (sx < -200 || sx > W+200 || sy < -100 || sy > H+100) continue;
     ctx.fillStyle = 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',' + f.alpha + ')';
     ctx.fillRect(sx, sy, f.w, f.h);
   }
@@ -126,22 +148,23 @@ function drawBackground() {
   const gs = 80;
   const offX = ((cam.x % gs) + gs) % gs;
   const offY = ((cam.y % gs) + gs) % gs;
-  for (let x = -offX; x < canvas.width + gs; x += gs) {
-    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+  for (let x = -offX; x < W + gs; x += gs) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
   }
-  for (let y = -offY; y < canvas.height + gs; y += gs) {
-    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+  for (let y = -offY; y < H + gs; y += gs) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
   }
 }
 
 // ── Platforms (always flat — rise=0) ──
 function drawPlatforms() {
   const c = Theme.get();
+  const W = logicalW(), H = logicalH();
   for (const p of WORLD.platforms) {
     const sx = p.x - cam.x;
     const sy = p.y - cam.y;
-    if (sx > canvas.width + 120 || sx + p.w < -120) continue;
-    if (sy > canvas.height + 100 || sy + p.h < -100) continue;
+    if (sx > W + 120 || sx + p.w < -120) continue;
+    if (sy > H + 100 || sy + p.h < -100) continue;
 
     ctx.save();
     ctx.fillStyle = 'rgba(' + c.r + ',' + c.g + ',' + c.b + ',0.055)';
@@ -219,14 +242,18 @@ function updateHUD() {
   }
 }
 
-// ── Overlays ──
 function drawOverlays() {
   const c = Theme.get();
+  const W = logicalW(), H = logicalH();
+
+  // Overlays are drawn after the main ctx.restore(), so we re-apply zoom here
+  ctx.save();
+  ctx.scale(ZOOM, ZOOM);
 
   if (flashAlpha > 0) {
     ctx.save(); ctx.globalAlpha = flashAlpha;
     ctx.fillStyle = c.primary;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, W, H);
     ctx.restore();
     flashAlpha -= 0.04;
   }
@@ -238,7 +265,7 @@ function drawOverlays() {
     ctx.font = '900 14px "Courier New",monospace';
     ctx.fillStyle = c.primary; ctx.shadowColor = c.glow; ctx.shadowBlur = 20;
     ctx.textAlign = 'center';
-    ctx.fillText(pickupMsg, canvas.width/2, canvas.height/2 - 60);
+    ctx.fillText(pickupMsg, W/2, H/2 - 60);
     ctx.restore();
   }
 
@@ -246,13 +273,13 @@ function drawOverlays() {
     const t = player.deadTimer / 80;
     ctx.save();
     ctx.fillStyle = 'rgba(0,0,0,' + Math.min(t * 2, 0.75) + ')';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, W, H);
     if (t > 0.3) {
       ctx.globalAlpha = Math.min((t - 0.3) * 3, 1);
       ctx.font = 'bold 16px "Courier New"';
       ctx.fillStyle = c.primary; ctx.shadowColor = c.glow; ctx.shadowBlur = 20;
       ctx.textAlign = 'center';
-      ctx.fillText('REFORMING...', canvas.width/2, canvas.height/2);
+      ctx.fillText('REFORMING...', W/2, H/2);
     }
     ctx.restore();
   }
@@ -265,28 +292,25 @@ function drawOverlays() {
   ctx.fillStyle = c.primary; ctx.shadowColor = c.glow; ctx.shadowBlur = 8;
   ctx.textAlign = 'right';
 
-  // Distance
   ctx.globalAlpha = 0.75;
-  ctx.fillText(dist + 'm  BEST: ' + bestX + 'm', canvas.width - 14, 24);
+  ctx.fillText(dist + 'm  BEST: ' + bestX + 'm', W - 14, 24);
 
-  // Live momentum bar
   const mBar = (player.momentum - 1) / 1.5;
   if (mBar > 0.05) {
     ctx.globalAlpha = 0.5 + mBar * 0.4;
-    ctx.fillText('MOMENTUM ' + '|'.repeat(Math.round(mBar * 8)), canvas.width - 14, 40);
+    ctx.fillText('MOMENTUM ' + '|'.repeat(Math.round(mBar * 8)), W - 14, 40);
   }
 
-  // Persistent lifetime stats (survive resets)
   ctx.globalAlpha = 0.60;
-  ctx.fillText('PEAK M   ' + STATS.peakMomentum.toFixed(2), canvas.width - 14, 58);
-  ctx.fillText('TOP JUMP ' + STATS.highestJump + 'px', canvas.width - 14, 74);
-  ctx.fillText('MOMENTUM ' + Math.floor(STATS.totalMomentum), canvas.width - 14, 90);
+  ctx.fillText('PEAK M   ' + STATS.peakMomentum.toFixed(2), W - 14, 58);
+  ctx.fillText('TOP JUMP ' + STATS.highestJump + 'px', W - 14, 74);
+  ctx.fillText('MOMENTUM ' + Math.floor(STATS.totalMomentum), W - 14, 90);
   if (STATS.slugsKilled > 0) {
-    ctx.fillText('* SLUGS  ' + STATS.slugsKilled, canvas.width - 14, 106);
+    ctx.fillText('* SLUGS  ' + STATS.slugsKilled, W - 14, 106);
   }
   ctx.restore();
 
-  // REMOVED: "A platformer BUT..." text
+  ctx.restore(); // end zoom scale
 }
 
 // ── Game start — called by homescreen.js ──
@@ -303,7 +327,8 @@ function startGame() {
     setTimeout(function() { home.style.display = 'none'; }, 560);
   }
   document.getElementById('hud').style.display = 'flex';
-  cam.snapTo(player, canvas.width, canvas.height);
+  cam.snapTo(player);
+  SFX.music.start();
   requestAnimationFrame(loop);
 }
 
@@ -395,10 +420,12 @@ function loop(time) {
   WORLD.ensureGenerated(player.x);
   WORLD.cull(player.x);
 
-  cam.update(player, canvas.width, canvas.height);
+  cam.update(player);
   updateHUD();
 
   ctx.save();
+  // Apply zoom — scales the entire world render around top-left origin
+  ctx.scale(ZOOM, ZOOM);
   if (shakeTimer > 0) {
     shakeTimer--;
     const s = shakeAmt * (shakeTimer / 10);
