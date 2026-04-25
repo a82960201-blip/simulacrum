@@ -4,6 +4,11 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <meta name="screen-orientation" content="landscape" />
+  <link rel="manifest" href="manifest.json" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="theme-color" content="#ff00ff" />
+
   <title>JELLO</title>
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -62,5 +67,12 @@
   <script src="controls.js"></script>
   <script src="game.js"></script>
   <script src="homescreen.js"></script>
+
+  <!-- Register the service worker for PWA offline support -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js');
+    }
+  </script>
 </body>
 </html>

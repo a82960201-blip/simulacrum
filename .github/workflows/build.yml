@@ -1,4 +1,4 @@
-name: Build APK
+name: Build APK (with PWA assets)
 
 on:
   push:
@@ -25,17 +25,19 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      # NEW STEP: Create www folder and copy all root web files
       - name: Put web files into www/
         run: |
           mkdir -p www
           cp *.html www/ 2>/dev/null || true
           cp *.css  www/ 2>/dev/null || true
           cp *.js   www/ 2>/dev/null || true
+          cp manifest.json www/ 2>/dev/null || true
+          cp sw.js         www/ 2>/dev/null || true
+          cp icon-*.png    www/ 2>/dev/null || true
 
       - name: Add Android platform
         run: npx cap add android
-        continue-on-error: true   # OK if already added
+        continue-on-error: true
 
       - name: Sync Capacitor
         run: npx cap sync android
